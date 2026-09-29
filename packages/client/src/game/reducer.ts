@@ -1,9 +1,30 @@
-import type { CommsState, MatchView, RoomView, ServerMessage } from '@split-signal/shared';
+import type {
+  AccountStats,
+  AccountUser,
+  CommsState,
+  MatchView,
+  RoomView,
+  ServerMessage,
+} from '@split-signal/shared';
 import type { ConnectionStatus } from '../net/socket';
 
 export interface Notice {
   id: number;
   text: string;
+}
+
+/** What happened to your results from the match that just finished. */
+export type ResultsSave =
+  | { status: 'saved' }
+  /** expiresAt is a performance.now() time. */
+  | { status: 'unsaved'; claimToken: string; expiresAt: number };
+
+export interface AccountState {
+  /** Null when this server has no Google sign-in. */
+  googleClientId: string | null;
+  user: AccountUser | null;
+  stats: AccountStats | null;
+  results: ResultsSave | null;
 }
 
 export interface GameState {
@@ -29,6 +50,7 @@ export interface GameState {
   }>;
   /** Engine-managed comms state for this round (who is live, budgets, clips in flight). */
   comms: CommsState & { receivedAt: number };
+  account: AccountState;
   notice: Notice | null;
 }
 
@@ -47,6 +69,7 @@ export const initialGameState: GameState = {
   signals: [],
   clips: [],
   comms: NO_COMMS,
+  account: { googleClientId: null, user: null, stats: null, results: null },
   notice: null,
 };
 
@@ -78,7 +101,14 @@ function onServerMessage(state: GameState, message: ServerMessage, at: number): 
       return {
         ...state,
         room: message.room,
-        ...(inLobby ? { match: null, puzzleView: null, reveal: null } : {}),
+        ...(inLobby
+          ? {
+              match: null,
+              puzzleView: null,
+              reveal: null,
+              account: { ...state.account, results: null },
+            }
+          : {}),
       };
     }
     case 'room.closed':
@@ -104,8 +134,39 @@ function onServerMessage(state: GameState, message: ServerMessage, at: number): 
         signals: stillPlaying ? state.signals : [],
         clips: stillPlaying ? state.clips : [],
         comms: stillPlaying ? state.comms : NO_COMMS,
+        // Results messages follow the final match.state; a new match clears them.
+        account:
+          message.match.phase === 'finished' || !state.account.results
+            ? state.account
+            : { ...state.account, results: null },
       };
     }
+    case 'server.hello':
+      return { ...state, account: { ...state.account, googleClientId: message.googleClientId } };
+    case 'auth.session':
+      return { ...state, account: { ...state.account, user: message.user } };
+    case 'auth.signedOut':
+      return {
+        ...state,
+        account: { ...state.account, user: null, stats: null },
+        ...(message.reason ? { notice: { id: at, text: message.reason } } : {}),
+      };
+    case 'results.saved':
+      return { ...state, account: { ...state.account, results: { status: 'saved' } } };
+    case 'results.unsaved':
+      return {
+        ...state,
+        account: {
+          ...state.account,
+          results: {
+            status: 'unsaved',
+            claimToken: message.claimToken,
+            expiresAt: at + message.expiresInMs,
+          },
+        },
+      };
+    case 'stats':
+      return { ...state, account: { ...state.account, stats: message.stats } };
     case 'comms.state':
       return { ...state, comms: { ...message.state, receivedAt: at } };
     case 'comms.clip': {

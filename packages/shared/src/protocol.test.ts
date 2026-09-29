@@ -100,6 +100,32 @@ describe('parseClientMessage', () => {
     ).toEqual({ type: 'comms.draw', ...batch, points: [{ x: 0, y: 0, dt: 0 }] });
   });
 
+  it('parses sign-in, claims and stats, rejecting junk tokens', () => {
+    const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxIn0.c2ln';
+    const token = 'a'.repeat(43);
+    const parse = (m: object) => parseClientMessage(JSON.stringify(m));
+    expect(parse({ type: 'auth.google', credential: jwt })).toEqual({
+      type: 'auth.google',
+      credential: jwt,
+    });
+    expect(parse({ type: 'auth.resume', token })).toEqual({ type: 'auth.resume', token });
+    expect(parse({ type: 'results.claim', claimToken: token })).toEqual({
+      type: 'results.claim',
+      claimToken: token,
+    });
+    expect(parse({ type: 'auth.signOut' })).toEqual({ type: 'auth.signOut' });
+    expect(parse({ type: 'stats.get' })).toEqual({ type: 'stats.get' });
+    for (const bad of [
+      { type: 'auth.google', credential: 'not a jwt' },
+      { type: 'auth.google', credential: `${jwt}.${'x'.repeat(9000)}` },
+      { type: 'auth.resume', token: 'short' },
+      { type: 'auth.resume', token: `${token}!` },
+      { type: 'results.claim', claimToken: 42 },
+    ]) {
+      expect(parse(bad), JSON.stringify(bad).slice(0, 60)).toBeNull();
+    }
+  });
+
   it('rejects malformed input', () => {
     for (const raw of [
       'not json',

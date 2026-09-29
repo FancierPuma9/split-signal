@@ -48,6 +48,8 @@ export function useGame() {
   const [recording, setRecording] = useState(false);
   // Draw batches arrive ~20 times a second; they go to subscribers, not through React state.
   const [drawListeners] = useState(() => new Set<DrawListener>());
+  // A guest's results waiting to be claimed; sent as soon as they sign in.
+  const pendingClaim = useRef<{ token: string; expiresAt: number } | null>(null);
 
   useEffect(() => {
     const socket = new GameSocket();
@@ -84,6 +86,26 @@ export function useGame() {
         case 'comms.config':
           voice.setIceServers(message.iceServers);
           return;
+        case 'auth.session': {
+          storage.setSessionToken(message.token);
+          const claim = pendingClaim.current;
+          if (claim && claim.expiresAt > performance.now()) {
+            socket.send({ type: 'results.claim', claimToken: claim.token });
+          }
+          break;
+        }
+        case 'auth.signedOut':
+          storage.setSessionToken(null);
+          break;
+        case 'results.unsaved':
+          pendingClaim.current = {
+            token: message.claimToken,
+            expiresAt: performance.now() + message.expiresInMs,
+          };
+          break;
+        case 'results.saved':
+          pendingClaim.current = null;
+          break;
         case 'comms.peers':
           voice.setPeers(message.peers);
           return;
@@ -104,6 +126,10 @@ export function useGame() {
       dispatch({ type: 'connection', status });
       // A new socket means a new epoch on the server; old voice connections are stale.
       if (status === 'closed') voice.closeAll();
+      // Signed in on an earlier connection (or in another tab): sign back in.
+      const sessionToken = storage.sessionToken();
+      if (status === 'open' && sessionToken)
+        socket.send({ type: 'auth.resume', token: sessionToken });
       // The tab holding a seat reclaims it whenever the socket (re)opens: reloads, network drops.
       const code = target.current;
       const token = code && storage.activeToken(code);
@@ -179,6 +205,13 @@ export function useGame() {
           drawListeners.delete(listener);
         };
       },
+      /** A credential from Google's sign-in button. */
+      signInWithGoogle: (credential: string) => send({ type: 'auth.google', credential }),
+      signOut: () => {
+        storage.setSessionToken(null);
+        send({ type: 'auth.signOut' });
+      },
+      loadStats: () => send({ type: 'stats.get' }),
       surrender: () => send({ type: 'match.surrender' }),
       playAgain: () => send({ type: 'match.playAgain' }),
       backToLobby: () => send({ type: 'match.backToLobby' }),

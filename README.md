@@ -42,6 +42,21 @@ To make every round use one puzzle while developing it:
 pnpm dev --puzzle sliding-grid
 ```
 
+## Accounts and stats (optional)
+
+Everyone can play as a guest; nothing about playing needs an account. Google sign-in adds stats:
+matches played and won, rounds won, and personal bests per puzzle. Guests who finish a match can
+sign in within 30 minutes to keep its results. It's off unless configured:
+
+| Variable                        | What it does                                                           |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `SPLIT_SIGNAL_GOOGLE_CLIENT_ID` | A Google OAuth client ID (Web application). Turns sign-in on           |
+| `SPLIT_SIGNAL_DB`               | Where the SQLite stats database lives (default `data/split-signal.db`) |
+
+In the Google Cloud console, add your site's origin to the client's authorized JavaScript origins
+(for development, `http://localhost` and `http://localhost:5173`). The server verifies Google's ID
+tokens itself and stores only the Google account ID, the player's name, and match results.
+
 ## Scripts
 
 | Command          | What it does                           |

@@ -118,6 +118,34 @@ describe('gameReducer', () => {
     expect(s.notice?.text).toBe('That room no longer exists');
   });
 
+  it('tracks sign-in, stats, and what happened to your results', () => {
+    let s = apply(
+      initialGameState,
+      { type: 'server.hello', googleClientId: 'client-1' },
+      { type: 'auth.session', token: 't'.repeat(43), user: { id: '1', name: 'Ada' } },
+    );
+    expect(s.account).toMatchObject({ googleClientId: 'client-1', user: { name: 'Ada' } });
+    s = apply(
+      s,
+      { type: 'match.state', match: match(0, 'finished') },
+      { type: 'results.unsaved', claimToken: 'c'.repeat(32), expiresInMs: 60_000 },
+    );
+    expect(s.account.results).toMatchObject({ status: 'unsaved', claimToken: 'c'.repeat(32) });
+    s = apply(s, { type: 'results.saved' }, { type: 'match.state', match: match(0, 'finished') });
+    expect(s.account.results).toEqual({ status: 'saved' });
+    // A new match clears it.
+    s = apply(s, { type: 'match.state', match: match(0, 'intro') });
+    expect(s.account.results).toBeNull();
+    s = apply(s, {
+      type: 'stats',
+      stats: { matchesPlayed: 1, matchesWon: 0, roundsWon: 2, bests: [] },
+    });
+    expect(s.account.stats?.roundsWon).toBe(2);
+    s = apply(s, { type: 'auth.signedOut', reason: 'Your sign-in expired. Sign in again.' });
+    expect(s.account).toMatchObject({ user: null, stats: null, googleClientId: 'client-1' });
+    expect(s.notice?.text).toMatch(/expired/);
+  });
+
   it('shows rejections and errors as notices that can be dismissed', () => {
     const s = apply(initialGameState, { type: 'match.reject', reason: 'Nope' });
     expect(s.notice?.text).toBe('Nope');

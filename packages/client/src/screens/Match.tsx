@@ -8,7 +8,8 @@ import {
   type TeamRoundResult,
 } from '@split-signal/shared';
 import { useCallback, useMemo, useState } from 'react';
-import type { GameState } from '../game/reducer';
+import { ResultsSave } from '../account/ResultsSave';
+import type { AccountState, GameState } from '../game/reducer';
 import type { GameActions } from '../game/useGame';
 import { PuzzleHost } from '../puzzle/PuzzleHost';
 import { formatTime, useCountdown } from '../puzzle/useCountdown';
@@ -20,6 +21,7 @@ interface MatchProps {
   match: NonNullable<GameState['match']>;
   puzzleView: GameState['puzzleView'];
   reveal: GameState['reveal'];
+  account: AccountState;
   signals: GameState['signals'];
   clips: GameState['clips'];
   comms: GameState['comms'];
@@ -33,6 +35,7 @@ export function Match({
   match,
   puzzleView,
   reveal,
+  account,
   signals,
   clips,
   comms: commsState,
@@ -171,7 +174,9 @@ export function Match({
             />
           </div>
         )}
-        {view.phase === 'finished' && <Results view={view} isHost={isHost} actions={actions} />}
+        {view.phase === 'finished' && (
+          <Results view={view} isHost={isHost} actions={actions} account={account} />
+        )}
       </div>
 
       {view.paused && view.phase !== 'finished' && (
@@ -344,10 +349,12 @@ function Results({
   view,
   isHost,
   actions,
+  account,
 }: {
   view: MatchView;
   isHost: boolean;
   actions: GameActions;
+  account: AccountState;
 }) {
   const standings = view.standings ?? [];
   const top = standings.filter((s) => s.rank === 1);
@@ -371,6 +378,7 @@ function Results({
           </li>
         ))}
       </ol>
+      <ResultsSave account={account} actions={actions} />
       <div className="results-actions">
         {!surrendered && isHost && (
           <>

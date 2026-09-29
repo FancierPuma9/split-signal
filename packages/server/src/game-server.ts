@@ -24,6 +24,8 @@ import {
 import type { Room, RoomPlayer } from './rooms/room';
 import { generateRoomCode } from './rooms/room-codes';
 import { MemoryRoomStore, type RoomStore } from './rooms/room-store';
+import type { AccountService, Session } from './stats/accounts';
+import { summarizeMatch } from './stats/record';
 
 /** One client's socket, as the game server sees it. */
 export interface Connection {
@@ -41,6 +43,8 @@ export interface GameServerOptions {
   emptyRoomTtlMs?: number;
   /** STUN/TURN servers handed to clients for voice. */
   iceServers?: IceServerConfig[];
+  /** Google sign-in and stats. Without it, everyone plays as a guest. */
+  accounts?: AccountService;
   log?: (message: string, error?: unknown) => void;
 }
 
@@ -73,6 +77,14 @@ export class GameServer {
   private readonly voiceAllowed = new Map<string, Set<string>>();
   /** The last comms.peers payload sent to each player, to send only changes. */
   private readonly voiceSent = new Map<string, string>();
+  private readonly accounts: AccountService | null;
+  /** Who is signed in on each connection. Independent of rooms: sign in anywhere, any time. */
+  private readonly sessions = new Map<Connection, Session>();
+  /** Connections that have gone, so a sign-in finishing late isn't attached to them. */
+  private readonly gone = new WeakSet<Connection>();
+  /** Finished matches already written to the stats database. */
+  private readonly recorded = new WeakSet<MatchEngine>();
+  private lastAccountSweep = 0;
 
   constructor(options: GameServerOptions) {
     this.catalog = options.catalog;
@@ -83,11 +95,27 @@ export class GameServer {
     this.emptyRoomTtlMs = options.emptyRoomTtlMs ?? 10 * 60_000;
     this.iceServers = options.iceServers ?? DEFAULT_ICE_SERVERS;
     this.log = options.log ?? ((message, error) => console.log(message, error ?? ''));
+    this.accounts = options.accounts ?? null;
+  }
+
+  /** A new socket: tell it what this server offers. */
+  connect(conn: Connection): void {
+    conn.send({ type: 'server.hello', googleClientId: this.accounts?.googleClientId ?? null });
   }
 
   handle(conn: Connection, message: ClientMessage): void {
     const error = (text: string) => conn.send({ type: 'error', message: text });
     const binding = this.bindings.get(conn);
+
+    if (
+      message.type === 'auth.google' ||
+      message.type === 'auth.resume' ||
+      message.type === 'auth.signOut' ||
+      message.type === 'results.claim' ||
+      message.type === 'stats.get'
+    ) {
+      return this.handleAccount(conn, message);
+    }
 
     if (message.type === 'room.create' || message.type === 'room.join') {
       if (binding) return error('Leave your current room first');
@@ -181,6 +209,8 @@ export class GameServer {
 
   /** The socket closed. The player keeps their seat so they can rejoin. */
   disconnect(conn: Connection): void {
+    this.gone.add(conn);
+    this.sessions.delete(conn);
     const binding = this.bindings.get(conn);
     if (!binding) return;
     this.detach(conn);
@@ -212,6 +242,10 @@ export class GameServer {
   /** Frees expired lobby seats and removes abandoned rooms. Call every second or so. */
   sweep(): void {
     const now = this.now();
+    if (this.accounts && now - this.lastAccountSweep >= 60_000) {
+      this.lastAccountSweep = now;
+      this.accounts.sweep();
+    }
     for (const room of this.store.list()) {
       if (room.emptySince !== null && now - room.emptySince >= this.emptyRoomTtlMs) {
         this.closeRoom(room);
@@ -327,7 +361,8 @@ export class GameServer {
       players: playerIds.map((id, seat) => ({ id, name: names.get(id) ?? '?', seat })),
     }));
 
-    const engine = new MatchEngine(
+    const startedAt = this.now();
+    const engine: MatchEngine = new MatchEngine(
       { seed, puzzles, teams, timings: this.timings, now: this.now },
       {
         send: (playerId, message) => this.sockets.get(playerId)?.send(message),
@@ -335,6 +370,7 @@ export class GameServer {
         onStateChange: () => {
           const current = this.store.get(room.code);
           if (current) this.syncVoice(current);
+          if (engine.finished) this.recordMatch(room.code, engine, teams, startedAt);
         },
       },
     );
@@ -344,6 +380,96 @@ export class GameServer {
     this.save(room);
     this.log(`[room ${room.code}] match started: ${puzzles.map((p) => p.manifest.id).join(', ')}`);
     engine.start();
+  }
+
+  private handleAccount(
+    conn: Connection,
+    message: Extract<
+      ClientMessage,
+      { type: 'auth.google' | 'auth.resume' | 'auth.signOut' | 'results.claim' | 'stats.get' }
+    >,
+  ): void {
+    const error = (text: string) => conn.send({ type: 'error', message: text });
+    const accounts = this.accounts;
+    if (!accounts) return error("Sign-in isn't set up on this server");
+    const session = this.sessions.get(conn);
+
+    switch (message.type) {
+      case 'auth.google':
+        accounts.signIn(message.credential).then(
+          (signedIn) => {
+            if (this.gone.has(conn)) return;
+            this.sessions.set(conn, signedIn);
+            conn.send({ type: 'auth.session', token: signedIn.token, user: signedIn.user });
+          },
+          (err: unknown) => {
+            this.log('Google sign-in failed', err);
+            conn.send({ type: 'auth.signedOut', reason: 'Google sign-in failed. Try again.' });
+          },
+        );
+        return;
+      case 'auth.resume': {
+        const resumed = accounts.resume(message.token);
+        if (!resumed) {
+          this.sessions.delete(conn);
+          return conn.send({
+            type: 'auth.signedOut',
+            reason: 'Your sign-in expired. Sign in again.',
+          });
+        }
+        this.sessions.set(conn, resumed);
+        return conn.send({ type: 'auth.session', token: resumed.token, user: resumed.user });
+      }
+      case 'auth.signOut':
+        if (session) accounts.signOut(session.token);
+        this.sessions.delete(conn);
+        return conn.send({ type: 'auth.signedOut' });
+      case 'results.claim':
+        if (!session) return error('Sign in first');
+        return accounts.claim(message.claimToken, session.user)
+          ? conn.send({ type: 'results.saved' })
+          : error('Those results can no longer be saved');
+      case 'stats.get':
+        if (!session) return error('Sign in to see your stats');
+        return conn.send({ type: 'stats', stats: accounts.stats(session.user) });
+    }
+  }
+
+  /**
+   * Writes a finished match to the stats database once: signed-in players' results straight
+   * away, guests' held for them to claim by signing in.
+   */
+  private recordMatch(
+    code: string,
+    engine: MatchEngine,
+    teams: ReadonlyArray<{ id: string; players: ReadonlyArray<{ id: string; name: string }> }>,
+    startedAt: number,
+  ): void {
+    if (!this.accounts || this.recorded.has(engine)) return;
+    this.recorded.add(engine);
+    try {
+      const record = summarizeMatch({
+        roomCode: code,
+        startedAt,
+        endedAt: this.now(),
+        history: engine.state.history,
+        standings: engine.state.standings,
+        endedBy: engine.state.endedBy,
+        teams,
+      });
+      const outcome = this.accounts.recordMatch(record, (playerId) => {
+        const conn = this.sockets.get(playerId);
+        return (conn && this.sessions.get(conn)?.user) ?? null;
+      });
+      for (const playerId of outcome.saved) {
+        this.sockets.get(playerId)?.send({ type: 'results.saved' });
+      }
+      for (const { playerId, claimToken, expiresInMs } of outcome.unsaved) {
+        this.sockets.get(playerId)?.send({ type: 'results.unsaved', claimToken, expiresInMs });
+      }
+    } catch (error) {
+      this.log(`[room ${code}] saving results failed`, error);
+    }
   }
 
   private eligibleFor(room: Room): AnyPuzzleServerModule[] {

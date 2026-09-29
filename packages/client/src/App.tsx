@@ -1,3 +1,4 @@
+import { AccountMenu } from './account/AccountMenu';
 import { useGame } from './game/useGame';
 import { Home } from './screens/Home';
 import { Lobby } from './screens/Lobby';
@@ -23,7 +24,10 @@ export function App() {
             onEnableMic={actions.enableMic}
           />
         )}
-        <span className={`conn conn-${state.connection}`}>{state.connection}</span>
+        <span className="topbar-end">
+          <AccountMenu account={state.account} actions={actions} />
+          <span className={`conn conn-${state.connection}`}>{state.connection}</span>
+        </span>
       </header>
 
       <main className="main">
@@ -36,6 +40,7 @@ export function App() {
             match={match}
             puzzleView={state.puzzleView}
             reveal={state.reveal}
+            account={state.account}
             signals={state.signals}
             clips={state.clips}
             comms={state.comms}

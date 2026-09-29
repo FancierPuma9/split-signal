@@ -1,3 +1,4 @@
+import type { AccountStats, AccountUser } from './account';
 import { normalizeRoomCode, type LobbySettings, type RoomView } from './lobby';
 import type { MatchView } from './match';
 import type { CommsState, DrawBatch } from './puzzle';
@@ -8,6 +9,7 @@ import type { CommsState, DrawBatch } from './puzzle';
  *   lobby.*  settings, seats, lock teams, start
  *   match.*  match state, per-player views, actions, surrender, play again
  *   comms.*  discrete signals, voice topology and WebRTC signaling, clips (phase 6)
+ *   auth.*, results.*, stats.*  optional Google sign-in and stats (phase 7)
  */
 
 export const WS_PATH = '/ws';
@@ -50,9 +52,27 @@ export type ClientMessage =
   /** A recorded clip (base64 audio), for puzzles with a clip comms rule. */
   | { type: 'comms.clip'; mime: string; data: string; durationMs: number }
   /** Pen samples for the draw rule, sent about every 50 ms while drawing. */
-  | ({ type: 'comms.draw' } & DrawBatch);
+  | ({ type: 'comms.draw' } & DrawBatch)
+  /** Sign in with a Google ID token (from Google's sign-in button). */
+  | { type: 'auth.google'; credential: string }
+  /** Sign back in on a new connection with a session token from auth.session. */
+  | { type: 'auth.resume'; token: string }
+  | { type: 'auth.signOut' }
+  /** Save a finished match's results (from results.unsaved) to the signed-in account. */
+  | { type: 'results.claim'; claimToken: string }
+  | { type: 'stats.get' };
 
 export type ServerMessage =
+  /** Sent on connecting. googleClientId is null when sign-in isn't set up on this server. */
+  | { type: 'server.hello'; googleClientId: string | null }
+  /** Signed in. Keep the token to sign back in on reconnect (auth.resume). */
+  | { type: 'auth.session'; token: string; user: AccountUser }
+  | { type: 'auth.signedOut'; reason?: string }
+  /** Your results from the match that just ended were saved to your account. */
+  | { type: 'results.saved' }
+  /** You played as a guest: sign in within expiresInMs and claim them with this token. */
+  | { type: 'results.unsaved'; claimToken: string; expiresInMs: number }
+  | { type: 'stats'; stats: AccountStats }
   /** Sent to a player when they enter a room. Store seatToken to rejoin later. */
   | { type: 'room.joined'; code: string; playerId: string; name: string; seatToken: string }
   | { type: 'room.state'; room: RoomView }
@@ -161,6 +181,9 @@ function parseRtcPayload(value: unknown): RtcPayload | null {
 }
 
 /** Parses and validates an incoming client message. Returns null for anything malformed. */
+const isToken = (v: unknown): v is string =>
+  typeof v === 'string' && v.length >= 16 && v.length <= 128 && /^[\w-]+$/.test(v);
+
 export function parseClientMessage(raw: string): ClientMessage | null {
   let data: unknown;
   try {
@@ -245,6 +268,22 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (typeof durationMs !== 'number' || !(durationMs > 0)) return null;
       return { type: 'comms.clip', mime, data: audio, durationMs };
     }
+    case 'auth.google': {
+      const credential = data.credential;
+      // Google ID tokens are a few kilobytes of base64url JWT.
+      const jwt = /^[\w-]+\.[\w-]+\.[\w-]+$/;
+      return typeof credential === 'string' && credential.length <= 8192 && jwt.test(credential)
+        ? { type: 'auth.google', credential }
+        : null;
+    }
+    case 'auth.resume':
+      return isToken(data.token) ? { type: 'auth.resume', token: data.token } : null;
+    case 'results.claim':
+      return isToken(data.claimToken)
+        ? { type: 'results.claim', claimToken: data.claimToken }
+        : null;
+    case 'auth.signOut':
+    case 'stats.get':
     case 'room.leave':
     case 'lobby.start':
     case 'match.surrender':

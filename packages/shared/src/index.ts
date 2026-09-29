@@ -1,3 +1,4 @@
+export * from './account';
 export * from './comms';
 export * from './lobby';
 export * from './match';

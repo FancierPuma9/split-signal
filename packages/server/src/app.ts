@@ -12,6 +12,7 @@ import { WebSocketServer, type RawData, type WebSocket } from 'ws';
 import { GameServer, type Connection } from './game-server';
 import { createStaticHandler } from './http/static';
 import type { MatchTimings } from './match/match-engine';
+import type { AccountService } from './stats/accounts';
 
 export interface ServerOptions {
   port: number;
@@ -21,6 +22,7 @@ export interface ServerOptions {
   timings?: Partial<MatchTimings>;
   heartbeatMs?: number;
   iceServers?: IceServerConfig[];
+  accounts?: AccountService;
 }
 
 export interface RunningServer {
@@ -40,6 +42,7 @@ export function startServer(options: ServerOptions): Promise<RunningServer> {
     catalog: options.catalog,
     timings: options.timings,
     iceServers: options.iceServers,
+    accounts: options.accounts,
   });
   const http = createServer(createStaticHandler(options.clientDist));
   // Room for one clip (MAX_CLIP_BASE64) plus JSON overhead.
@@ -54,6 +57,7 @@ export function startServer(options: ServerOptions): Promise<RunningServer> {
     };
     alive.set(socket, true);
     socket.on('pong', () => alive.set(socket, true));
+    game.connect(conn);
 
     socket.on('message', (data, isBinary) => {
       if (isBinary) return;

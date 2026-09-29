@@ -7,6 +7,7 @@
 // rejoins automatically; other tabs offer "Rejoin as ..." instead of silently taking a seat over.
 
 const NAME_KEY = 'split-signal:name';
+const SESSION_KEY = 'split-signal:session';
 const seatsKey = (code: string) => `split-signal:seats:${code}`;
 const activeKey = (code: string) => `split-signal:active:${code}`;
 
@@ -51,6 +52,10 @@ function writeSeats(code: string, seats: SavedSeat[]): void {
 export const storage = {
   name: () => read(local, NAME_KEY) ?? '',
   setName: (name: string) => write(local, NAME_KEY, name),
+
+  /** The sign-in session token, shared by every tab in this browser. */
+  sessionToken: () => read(local, SESSION_KEY),
+  setSessionToken: (token: string | null) => write(local, SESSION_KEY, token),
 
   /** Seats saved for a room in this browser. */
   savedSeats(code: string): SavedSeat[] {

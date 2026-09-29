@@ -196,10 +196,118 @@ th {
   color: var(--danger);
 }
 
-.conn {
+.topbar-end {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.conn {
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.account {
+  position: relative;
+}
+
+.account-button {
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  min-width: 140px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
+}
+
+.account-menu button {
+  text-align: left;
+}
+
+.google-signin {
+  min-height: 28px;
+  color-scheme: light;
+}
+
+.results-save {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--muted);
+}
+
+.results-save.saved {
+  color: var(--good);
+  font-weight: 600;
+}
+
+.stats-card {
+  display: grid;
+  gap: 14px;
+  width: min(480px, 92vw);
+  max-height: 85vh;
+  overflow: auto;
+}
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.stat-tiles div {
+  display: grid;
+  justify-items: center;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.stat-tiles strong {
+  font-size: 1.6rem;
+}
+
+.stat-tiles span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.bests {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.bests th,
+.bests td {
+  padding: 5px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.bests th {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .conn::before {

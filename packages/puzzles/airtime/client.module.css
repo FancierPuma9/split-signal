@@ -1,0 +1,223 @@
+.root {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  width: min(860px, 100%);
+}
+
+.hint {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.floors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+}
+
+.floor {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.floor figcaption {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.floor svg {
+  width: min(390px, 90vw);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.mark {
+  font-size: 9px;
+  font-weight: 700;
+  fill: #e8eaee;
+  text-anchor: middle;
+}
+
+.roomName {
+  font-size: 6.5px;
+  fill: #d0d6e2;
+  opacity: 0.85;
+}
+
+.floor g circle {
+  fill: #20242c;
+  stroke: #9aa1ad;
+  stroke-width: 1.5;
+}
+
+.floor g text {
+  font-size: 10px;
+  font-weight: 700;
+  fill: #e8eaee;
+  text-anchor: middle;
+}
+
+.floor g.current circle {
+  fill: #ffc53d;
+  stroke: #fff;
+}
+
+.floor g.current text {
+  fill: #1d1d1f;
+}
+
+.floor g.done {
+  opacity: 0.45;
+}
+
+.walkerDot {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 1.5;
+  animation: pulse 1.2s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes pulse {
+  50% {
+    transform: scale(1.35);
+  }
+}
+
+.objectives {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.doneItem {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.currentItem {
+  color: #ffc53d;
+  font-weight: 700;
+}
+
+.fog {
+  display: grid;
+  grid-template-columns: repeat(3, 88px);
+  grid-template-rows: repeat(3, 88px);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 6px #0a0b0e,
+    0 0 40px 20px rgb(0 0 0 / 60%);
+}
+
+.cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.wall {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 20px, rgb(255 255 255 / 4%) 20px 22px), #14161c;
+}
+
+.corridor {
+  background: #3a404d;
+}
+
+.roomFloor {
+  background:
+    repeating-linear-gradient(45deg, transparent 0 10px, rgb(255 255 255 / 4%) 10px 20px), #56607a;
+}
+
+.door {
+  background: #a0714f;
+  box-shadow: inset 0 0 0 6px #7a5236;
+}
+
+.exit {
+  background: #2e7d4f;
+}
+
+.sign {
+  position: absolute;
+  top: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.me {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.thing,
+.thingCurrent {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  font-size: 28px;
+}
+
+.thingCurrent {
+  filter: drop-shadow(0 0 6px #ffc53d);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.controls {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.dpad {
+  display: grid;
+  grid-template-areas:
+    '. up .'
+    'left . right'
+    '. down .';
+  gap: 4px;
+}
+
+.pad {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  font-size: 18px;
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+  touch-action: manipulation;
+}
+
+.up {
+  grid-area: up;
+}
+
+.down {
+  grid-area: down;
+}
+
+.left {
+  grid-area: left;
+}
+
+.right {
+  grid-area: right;
+}
+
+.use {
+  min-width: 110px;
+  min-height: 56px;
+}

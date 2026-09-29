@@ -4,7 +4,8 @@ export type RoundResolution = Pick<RoundSummary, 'outcome' | 'winnerTeamId'>;
 
 /**
  * Picks a round winner.
- *   race:    among teams that solved (inside the grace window), the fastest.
+ *   race:    among teams that solved (inside the grace window), the fastest. If nobody solved
+ *            and the puzzle reports points (progress, say), the most points.
  *   compare: if the puzzle reports points, the most points (solved or not; ties go to whoever
  *            finished earlier). Otherwise fewest moves, ties broken by time; unsolved teams
  *            never win.
@@ -14,7 +15,8 @@ export function resolveRound(
   winCondition: 'race' | 'compare',
   results: readonly TeamRoundResult[],
 ): RoundResolution {
-  const byPoints = winCondition === 'compare' && results.some((r) => r.points !== undefined);
+  const hasPoints = results.some((r) => r.points !== undefined);
+  const byPoints = hasPoints && (winCondition === 'compare' || !results.some((r) => r.solved));
   const candidates = byPoints ? results : results.filter((r) => r.solved);
   if (candidates.length === 0) return { outcome: 'unsolved', winnerTeamId: null };
 

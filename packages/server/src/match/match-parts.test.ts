@@ -96,6 +96,28 @@ describe('resolveRound', () => {
     ).toEqual({ outcome: 'won', winnerTeamId: 'a' });
   });
 
+  it('race: falls back to points when nobody finishes', () => {
+    expect(
+      resolveRound('race', [
+        { teamId: 'a', solved: false, points: 1.4 },
+        { teamId: 'b', solved: false, points: 2.1 },
+      ]),
+    ).toEqual({ outcome: 'won', winnerTeamId: 'b' });
+    // Finishing beats any amount of progress.
+    expect(
+      resolveRound('race', [
+        { teamId: 'a', solved: true, elapsedMs: 170_000, points: 3 },
+        { teamId: 'b', solved: false, points: 2.9 },
+      ]),
+    ).toEqual({ outcome: 'won', winnerTeamId: 'a' });
+    expect(
+      resolveRound('race', [
+        { teamId: 'a', solved: false, points: 0 },
+        { teamId: 'b', solved: false, points: 0 },
+      ]).outcome,
+    ).toBe('unsolved');
+  });
+
   it('ties and unsolved rounds have no winner', () => {
     expect(
       resolveRound('race', [

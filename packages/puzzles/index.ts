@@ -1,4 +1,5 @@
 import type { AnyPuzzleServerModule } from '@split-signal/shared';
+import airtime from './airtime/server';
 import colorMix from './color-mix/server';
 import colorSweep from './color-sweep/server';
 import echoClaw from './echo-claw/server';
@@ -31,6 +32,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   splitHairs,
   echoClaw,
   colorSweep,
+  airtime,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

@@ -7,6 +7,11 @@ import { existsSync, readdirSync } from 'node:fs';
 // The Vite dev server proxies /ws to this port (see packages/client/vite.config.ts).
 const SERVER_PORT = '3001';
 
+// Settings such as SPLIT_SIGNAL_GOOGLE_CLIENT_ID can live in a .env file at the repo root (the same
+// file docker compose reads; see .env.example). Variables already set in the shell win.
+const envFile = new URL('../.env', import.meta.url);
+if (existsSync(envFile)) process.loadEnvFile(envFile);
+
 const args = process.argv.slice(2);
 let puzzle;
 for (let i = 0; i < args.length; i++) {

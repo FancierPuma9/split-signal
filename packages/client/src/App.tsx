@@ -35,6 +35,7 @@ export function App() {
           <Match
             match={match}
             puzzleView={state.puzzleView}
+            reveal={state.reveal}
             signals={state.signals}
             clips={state.clips}
             comms={state.comms}

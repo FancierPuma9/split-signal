@@ -35,6 +35,8 @@ export interface HiddenInfo<State> {
   hiddenFrom: (player: PlayerInfo) => boolean;
   /** Return a copy of state with the hidden thing changed to some other value. */
   change: (state: State) => State;
+  /** Optional: once this returns true the thing may be revealed (e.g. after the team submits). */
+  until?: (state: State) => boolean;
 }
 
 export interface StartOptions<State> {
@@ -165,6 +167,13 @@ export class PuzzleDriver<State, View, Action> {
     return this.session.view(this.player(seat).id);
   }
 
+  /** The puzzle's end-of-round view for a seat (undefined without reveal()). */
+  reveal(seat: number): View | undefined {
+    const view = this.session.reveal(this.player(seat).id);
+    if (view !== undefined) assertJson(view, `reveal for seat ${seat}`);
+    return view;
+  }
+
   act(seat: number, action: Action): ActionOutcome {
     const outcome = this.session.apply(this.player(seat).id, action);
     if (!outcome.ok && outcome.error !== undefined) {
@@ -217,7 +226,7 @@ export class PuzzleDriver<State, View, Action> {
       assertJson(view, `view for seat ${player.seat} ${when}`);
 
       for (const hidden of this.hidden) {
-        if (!hidden.hiddenFrom(player)) continue;
+        if (!hidden.hiddenFrom(player) || hidden.until?.(state)) continue;
         const changedState = hidden.change(state);
         if (deepEqual(changedState, state)) {
           throw new HarnessError(

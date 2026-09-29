@@ -64,6 +64,8 @@ export type ServerMessage =
   | { type: 'room.rejoinFailed'; code: string; reason: string }
   | { type: 'match.state'; match: MatchView }
   | { type: 'match.view'; view: unknown }
+  /** After a round ends: the puzzle's reveal() view for you, shown under the scoreboard. */
+  | { type: 'match.reveal'; round: number; view: unknown }
   | { type: 'match.reject'; reason: string }
   /** A signal from a teammate (or an echo of your own, so the UI can confirm it went out). */
   | { type: 'comms.signal'; from: string; signal: string }

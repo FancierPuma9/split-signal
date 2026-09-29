@@ -113,6 +113,8 @@ export class MatchEngine {
   private readonly lastSignalAt = new Map<string, number>();
   private instances = new Map<string, PuzzleRuntime>();
   private comms: CommsController | null = null;
+  /** The last round's reveal() views by player, kept for the scoreboard (and reconnects). */
+  private reveals = new Map<string, unknown>();
 
   constructor(options: MatchOptions, io: MatchIO) {
     if (options.puzzles.length === 0) throw new Error('A match needs at least one puzzle');
@@ -274,6 +276,7 @@ export class MatchEngine {
     this.broadcast();
     this.runtimeFor(team.id)?.resendView(playerId);
     this.comms?.resend(playerId);
+    this.sendReveal(playerId);
   }
 
   /** Ends the whole match as it stands. Only allowed while waiting on a disconnected player. */
@@ -369,6 +372,7 @@ export class MatchEngine {
   }
 
   private enterPlaying(): void {
+    this.reveals = new Map();
     const puzzle = this.currentPuzzle();
     const { manifest } = puzzle;
     this.enterPhase('playing', manifest.timeLimitSeconds * 1000);
@@ -522,10 +526,24 @@ export class MatchEngine {
     }
     s.history.push({ ...summary, points });
     s.roundResults = Object.fromEntries(results.map((r) => [r.teamId, r]));
+    for (const team of this.teams) {
+      const runtime = this.runtimeFor(team.id);
+      for (const player of team.players) {
+        const view = runtime?.revealFor(player.id);
+        if (view !== undefined) this.reveals.set(player.id, view);
+      }
+    }
     this.instances = new Map();
     this.comms = null;
     this.enterPhase('scoreboard', this.timings.scoreboardMs);
     this.broadcast();
+    for (const playerId of this.reveals.keys()) this.sendReveal(playerId);
+  }
+
+  private sendReveal(playerId: string): void {
+    const view = this.reveals.get(playerId);
+    if (view === undefined || this.state.phase !== 'scoreboard') return;
+    this.io.send(playerId, { type: 'match.reveal', round: this.state.round, view });
   }
 
   private finish(endedBy: 'completed' | 'surrender'): void {

@@ -19,6 +19,7 @@ import { SignalBar } from './SignalBar';
 interface MatchProps {
   match: NonNullable<GameState['match']>;
   puzzleView: GameState['puzzleView'];
+  reveal: GameState['reveal'];
   signals: GameState['signals'];
   clips: GameState['clips'];
   comms: GameState['comms'];
@@ -31,6 +32,7 @@ interface MatchProps {
 export function Match({
   match,
   puzzleView,
+  reveal,
   signals,
   clips,
   comms: commsState,
@@ -109,7 +111,8 @@ export function Match({
             )}
             {myTeam.round.solved && (
               <div className="solved-banner">
-                Solved! {formatResult(myTeam.round, view.puzzle.manifest.winCondition)}
+                {view.puzzle.manifest.winCondition === 'compare' ? 'Done!' : 'Solved!'}{' '}
+                {formatResult(myTeam.round, view.puzzle.manifest.winCondition)}
                 {view.teams.some((t) => !t.round.solved) && ' · waiting for the other teams'}
               </div>
             )}
@@ -151,6 +154,21 @@ export function Match({
         {view.phase === 'scoreboard' && (
           <Scoreboard view={view} round={view.history.at(-1)} remainingMs={remainingMs} />
         )}
+        {view.phase === 'scoreboard' && reveal?.round === view.round && myTeam && me && (
+          <div className="puzzle reveal">
+            <PuzzleHost
+              key={`reveal-${view.round}`}
+              puzzleId={view.puzzle.id}
+              view={reveal.value}
+              send={noop}
+              signals={NO_SIGNALS}
+              comms={commsState}
+              timer={{ remainingMs: 0, totalMs: view.puzzle.manifest.timeLimitSeconds * 1000 }}
+              me={me}
+              team={{ id: myTeam.id, name: myTeam.name, players: myTeam.players }}
+            />
+          </div>
+        )}
         {view.phase === 'finished' && <Results view={view} isHost={isHost} actions={actions} />}
       </div>
 
@@ -184,8 +202,12 @@ function playerName(view: MatchView, id: string): string {
 }
 
 /** Race rounds are decided on time alone, so moves are only shown for compare rounds. */
+const noop = () => {};
+const NO_SIGNALS = { allowed: [], send: noop, incoming: [] };
+
 function formatResult(result: TeamRoundResult, winCondition: 'race' | 'compare'): string {
   const parts: string[] = [];
+  if (result.points !== undefined) parts.push(`${result.points} pts`);
   if (winCondition === 'compare' && result.moves !== undefined) {
     parts.push(`${result.moves} ${result.moves === 1 ? 'move' : 'moves'}`);
   }
@@ -296,7 +318,13 @@ function Scoreboard({
                 <td>
                   <span className={`dot team-${team.id}`} /> {team.name}
                 </td>
-                <td>{result?.solved ? formatResult(result, round.winCondition) : 'Not solved'}</td>
+                <td>
+                  {result?.solved
+                    ? formatResult(result, round.winCondition)
+                    : result?.points !== undefined
+                      ? `${formatResult(result, round.winCondition)} · out of time`
+                      : 'Not solved'}
+                </td>
                 <td>+{round.points[team.id] ?? 0}</td>
                 <td>{team.score}</td>
               </tr>

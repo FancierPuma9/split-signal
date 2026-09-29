@@ -94,6 +94,16 @@ export class PuzzleRuntime {
     }
   }
 
+  /** The end-of-round view for one player, or undefined if the puzzle has none. */
+  revealFor(playerId: string): unknown {
+    try {
+      return this.session.reveal(playerId);
+    } catch (error) {
+      this.hooks.onError(error, 'reveal');
+      return undefined;
+    }
+  }
+
   /** Recomputes everyone's view, e.g. after comms state (like who is live) changed. */
   refresh(): void {
     this.publish();

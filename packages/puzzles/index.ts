@@ -1,6 +1,7 @@
 import type { AnyPuzzleServerModule } from '@split-signal/shared';
 import colorMix from './color-mix/server';
 import elevators from './elevators/server';
+import ghostInk from './ghost-ink/server';
 import melodySort from './melody-sort/server';
 import padlock from './padlock/server';
 import pressTheButton from './press-the-button/server';
@@ -23,6 +24,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   elevators,
   recipeCipher,
   radioTune,
+  ghostInk,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

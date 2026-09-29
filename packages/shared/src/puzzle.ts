@@ -167,6 +167,13 @@ export interface PuzzleServerModule<State, View, Action> {
    */
   onClip?(state: State, fromPlayerId: string, ctx: Context): ClipRouting;
 
+  /**
+   * Optional. The view each player gets once the round is over, shown under the scoreboard (e.g.
+   * the answer next to what the team did). Only called after the round ends, so it may show
+   * anything. Rendered by the same client component as view().
+   */
+  reveal?(state: State, playerId: string, ctx: Context): View;
+
   /** Per-team: this team is done. Shared: the round is over. */
   isSolved(state: State): boolean;
 

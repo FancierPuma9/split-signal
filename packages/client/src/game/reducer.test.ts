@@ -45,6 +45,18 @@ describe('gameReducer', () => {
     expect(s.puzzleView).toBeNull();
   });
 
+  it('keeps the reveal through the scoreboard and drops it when the next round starts', () => {
+    let s = apply(
+      initialGameState,
+      { type: 'match.state', match: match(0, 'scoreboard') },
+      { type: 'match.reveal', round: 0, view: { answer: 42 } },
+      { type: 'match.state', match: match(0, 'scoreboard') },
+    );
+    expect(s.reveal).toEqual({ round: 0, value: { answer: 42 } });
+    s = apply(s, { type: 'match.state', match: match(1, 'intro') });
+    expect(s.reveal).toBeNull();
+  });
+
   it('collects signals during a round and clears them when it ends', () => {
     let s = apply(
       initialGameState,
@@ -92,6 +104,18 @@ describe('gameReducer', () => {
     );
     expect(s).toMatchObject({ session: null, room: null, match: null });
     expect(s.notice?.text).toBe('The room was closed');
+  });
+
+  it('drops the room on screen when rejoining it fails', () => {
+    const s = apply(
+      initialGameState,
+      { type: 'room.joined', code: 'BCDF', playerId: 'p1', name: 'Ada', seatToken: 't' },
+      { type: 'room.state', room: room('in-match') },
+      { type: 'match.state', match: match(0, 'finished') },
+      { type: 'room.rejoinFailed', code: 'BCDF', reason: 'That room no longer exists' },
+    );
+    expect(s).toMatchObject({ session: null, room: null, match: null });
+    expect(s.notice?.text).toBe('That room no longer exists');
   });
 
   it('shows rejections and errors as notices that can be dismissed', () => {

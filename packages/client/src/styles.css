@@ -420,6 +420,7 @@ th {
 .hud-right {
   display: grid;
   justify-items: end;
+  align-content: start;
   gap: 8px;
 }
 
@@ -503,6 +504,10 @@ th {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+}
+
+.reveal {
+  margin-top: 16px;
 }
 
 .solved-banner {

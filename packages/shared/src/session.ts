@@ -82,6 +82,11 @@ export class PuzzleSession<State = unknown, View = unknown, Action = unknown> {
     return this.players.some((p) => p.id === playerId);
   }
 
+  /** The end-of-round view, or undefined if the module has no reveal(). */
+  reveal(playerId: string): View | undefined {
+    return this.module.reveal?.(this.current, playerId, this.context());
+  }
+
   view(playerId: string): View {
     return this.module.view(this.current, playerId, this.context());
   }

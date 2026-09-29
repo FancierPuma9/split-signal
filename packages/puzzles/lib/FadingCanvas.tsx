@@ -30,6 +30,7 @@ interface FadingCanvasProps {
   aspect?: number;
   ownColor?: string;
   incomingColor?: string;
+  className?: string;
   style?: CSSProperties;
 }
 
@@ -45,6 +46,7 @@ export function FadingCanvas({
   aspect = 4 / 3,
   ownColor = '#4cc9f0',
   incomingColor = '#ffc53d',
+  className,
   style,
 }: FadingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -113,8 +115,8 @@ export function FadingCanvas({
   // Local drawing: collect samples, send one batch every BATCH_MS and a final one on release.
   const stroke = useRef<{
     id: string;
-    started: number;
-    pending: DrawBatch['points'];
+    /** Samples not sent yet; `at` is performance.now(). */
+    pending: Array<{ x: number; y: number; at: number }>;
     last: { x: number; y: number } | null;
     timer: ReturnType<typeof setInterval> | undefined;
   } | null>(null);
@@ -131,10 +133,11 @@ export function FadingCanvas({
     const s = stroke.current;
     if (!s) return;
     if (s.pending.length > 0 || done) {
-      const base = s.pending[0]?.dt ?? 0;
+      // dt counts from the batch's first sample, so it stays small (a batch spans ~50ms).
+      const base = s.pending[0]?.at ?? 0;
       draw.send({
         strokeId: s.id,
-        points: s.pending.map((p) => ({ ...p, dt: p.dt - base })),
+        points: s.pending.map((p) => ({ x: p.x, y: p.y, dt: Math.min(1000, p.at - base) })),
         done,
       });
       s.pending = [];
@@ -157,7 +160,10 @@ export function FadingCanvas({
   );
 
   return (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: aspect, ...style }}>
+    <div
+      className={className}
+      style={{ position: 'relative', width: '100%', aspectRatio: aspect, ...style }}
+    >
       {overlay && <div style={{ position: 'absolute', inset: 0 }}>{overlay}</div>}
       <canvas
         ref={canvasRef}
@@ -175,11 +181,9 @@ export function FadingCanvas({
           if (!canDraw) return;
           e.currentTarget.setPointerCapture(e.pointerId);
           const p = point(e);
-          const now = performance.now();
           stroke.current = {
             id: crypto.randomUUID().slice(0, 8),
-            started: now,
-            pending: [{ ...p, dt: 0 }],
+            pending: [{ ...p, at: performance.now() }],
             last: p,
             timer: setInterval(() => flush(false), BATCH_MS),
           };
@@ -200,7 +204,7 @@ export function FadingCanvas({
             });
           }
           s.last = p;
-          s.pending.push({ ...p, dt: Math.min(1000, now - s.started) });
+          s.pending.push({ ...p, at: now });
         }}
         onPointerUp={end}
         onPointerCancel={end}

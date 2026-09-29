@@ -151,6 +151,49 @@ describe('MatchEngine: targeted signals', () => {
   });
 });
 
+describe('MatchEngine: reveal', () => {
+  const revealing: PuzzleServerModule<{ secret: number }, unknown, unknown> = {
+    manifest: {
+      id: 'reveal-test',
+      name: 'Reveal',
+      description: 'Test.',
+      teams: { min: 1, max: 3 },
+      playersPerTeam: { min: 1, max: 4 },
+      winCondition: 'race',
+      timeLimitSeconds: 5,
+      comms: { type: 'none' },
+    },
+    init: () => ({ secret: 7 }),
+    view: () => ({ hidden: true }),
+    reveal: (state, playerId) => ({ secret: state.secret, you: playerId }),
+    apply: () => ({ reject: 'no' }),
+    isSolved: () => false,
+    score: () => ({}),
+  };
+
+  it('sends each player the reveal once the scoreboard is up, and again on reconnect', () => {
+    const { engine, box, run } = setup([revealing as AnyPuzzleServerModule]);
+    expect(box('r1').all('match.reveal')).toHaveLength(0);
+    run(5000);
+    expect(engine.state.phase).toBe('scoreboard');
+    expect(box('r1').last('match.reveal')).toEqual({
+      type: 'match.reveal',
+      round: 0,
+      view: { secret: 7, you: 'r1' },
+    });
+    expect(box('b2').last('match.reveal')?.view).toEqual({ secret: 7, you: 'b2' });
+    engine.playerDisconnected('b2');
+    engine.playerReconnected('b2');
+    expect(box('b2').all('match.reveal')).toHaveLength(2);
+  });
+
+  it('sends nothing for puzzles without reveal()', () => {
+    const { box, run } = setup([signalPuzzle({ type: 'none' })]);
+    run(60_000);
+    expect(box('r1').all('match.reveal')).toHaveLength(0);
+  });
+});
+
 interface PointsState {
   points: number;
   submitted: boolean;

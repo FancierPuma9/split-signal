@@ -1,5 +1,7 @@
 import type { AnyPuzzleServerModule } from '@split-signal/shared';
 import colorMix from './color-mix/server';
+import colorSweep from './color-sweep/server';
+import echoClaw from './echo-claw/server';
 import elevators from './elevators/server';
 import ghostInk from './ghost-ink/server';
 import melodySort from './melody-sort/server';
@@ -27,6 +29,8 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   radioTune,
   ghostInk,
   splitHairs,
+  echoClaw,
+  colorSweep,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

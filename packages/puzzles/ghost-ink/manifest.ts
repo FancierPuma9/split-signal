@@ -13,6 +13,7 @@ export const manifest: PuzzleManifest = {
   // One Drawer; with three players, two Placers split the palette between them.
   playersPerTeam: { min: 2, max: 3 },
   winCondition: 'compare',
+  goal: 'The most accurate rebuild wins (ties go to the earlier submit)',
   timeLimitSeconds: 90,
   comms: { type: 'draw', fadeMs: FADE_MS, from: 'role' },
 };

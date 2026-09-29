@@ -593,6 +593,15 @@ th {
   color: #fff;
 }
 
+.clip-hearing {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--good) 25%, transparent);
+  color: #9be3bd;
+  font-weight: 600;
+  animation: signal-in 0.2s ease-out;
+}
+
 .budgets {
   list-style: none;
   margin: 0 0 0 auto;

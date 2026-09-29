@@ -60,9 +60,12 @@ export class VoiceManager {
     this.iceServers = servers;
   }
 
-  /** Asks for the microphone once. Voice still works receive-only if it's refused. */
+  /**
+   * Asks for the microphone, again after a refusal (the player may have changed their mind; a
+   * browser that remembers the refusal just refuses again). Voice still works receive-only.
+   */
   async requestMic(): Promise<void> {
-    if (this.mic !== 'off') return;
+    if (this.mic !== 'off' && this.mic !== 'blocked') return;
     if (!navigator.mediaDevices?.getUserMedia) return this.setMic('unsupported');
     this.setMic('requesting');
     try {

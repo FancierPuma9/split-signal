@@ -1,0 +1,93 @@
+.root {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: min(520px, 100%);
+}
+
+.hint {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.counter {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+.pair {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.pair figure {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.pair figcaption {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.swatch {
+  width: 170px;
+  height: 170px;
+  border-radius: 18px;
+  border: 3px solid rgb(255 255 255 / 15%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+.big {
+  width: min(300px, 80vw);
+  height: min(300px, 80vw);
+}
+
+.lock {
+  min-width: 180px;
+  padding: 14px 28px;
+  font-size: 1.3rem;
+  border-radius: 999px;
+}
+
+.outcome {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.track {
+  position: relative;
+  width: 100%;
+  padding: 26px 0;
+}
+
+.bar {
+  height: 36px;
+  border-radius: 10px;
+  border: 2px solid rgb(255 255 255 / 15%);
+}
+
+.marker {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.targetMark {
+  top: 4px;
+}
+
+.lockMark {
+  bottom: 4px;
+  color: var(--accent);
+}

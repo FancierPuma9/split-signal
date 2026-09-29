@@ -29,6 +29,11 @@ describe('validateManifest', () => {
     expect(errors).toHaveLength(4);
   });
 
+  it('accepts a goal line but not an empty one', () => {
+    expect(validateManifest({ ...base, goal: 'Most grabs wins' })).toEqual([]);
+    expect(validateManifest({ ...base, goal: ' ' })).toEqual(['goal cannot be empty']);
+  });
+
   it('flags empty or duplicate signals', () => {
     expect(validateManifest({ ...base, comms: { type: 'signals', signals: [] } })).toHaveLength(1);
     expect(

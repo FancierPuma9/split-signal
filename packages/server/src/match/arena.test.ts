@@ -244,6 +244,25 @@ describe('MatchEngine: points', () => {
     expect(engine.state.history[0]).toMatchObject({ outcome: 'won', winnerTeamId: 'blue' });
   });
 
+  it('breaks a tie between teams that never finish on the time the puzzle reports', () => {
+    // Never solved; 'submit' just marks an earlier tie-break time.
+    const timed = {
+      ...pointsPuzzle,
+      isSolved: () => false,
+      score: (state: PointsState) => ({ points: state.points, elapsedMs: state.submitted ? 3 : 8 }),
+    } as unknown as AnyPuzzleServerModule;
+    const { engine, run } = setup([timed]);
+    engine.handleAction('r1', { type: 'set', n: 2 });
+    engine.handleAction('b1', { type: 'set', n: 2 });
+    engine.handleAction('b1', { type: 'submit' });
+    run(10_000);
+    expect(engine.state.history[0]).toMatchObject({ outcome: 'won', winnerTeamId: 'blue' });
+    expect(engine.state.history[0]?.results).toEqual([
+      { teamId: 'red', solved: false, points: 2, elapsedMs: 8 },
+      { teamId: 'blue', solved: false, points: 2, elapsedMs: 3 },
+    ]);
+  });
+
   it('calls a round where nobody scored unsolved', () => {
     const { engine, run } = setup([pointsPuzzle as AnyPuzzleServerModule]);
     run(10_000);

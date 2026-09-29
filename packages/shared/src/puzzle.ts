@@ -34,6 +34,11 @@ export interface PuzzleManifest {
    * compare: every team plays until solved or time expires; best score wins.
    */
   winCondition: 'race' | 'compare';
+  /**
+   * One line on what wins, shown at round intro (e.g. "Most grabs wins"). Defaults to a line
+   * based on winCondition, which for compare assumes fewest moves.
+   */
+  goal?: string;
   timeLimitSeconds: number;
   comms: CommsRule;
   /**
@@ -257,6 +262,7 @@ export function validateManifest(m: PuzzleManifest): string[] {
     errors.push(`winCondition must be 'race' or 'compare'`);
   }
   if (!(m.timeLimitSeconds > 0)) errors.push('timeLimitSeconds must be positive');
+  if (m.goal !== undefined && !m.goal.trim()) errors.push('goal cannot be empty');
   if (m.raceGraceMs !== undefined && !(m.raceGraceMs >= 0)) {
     errors.push('raceGraceMs cannot be negative');
   }

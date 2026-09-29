@@ -500,9 +500,10 @@ export class MatchEngine {
     return this.teams.map((t) => {
       const recorded = s.roundResults[t.id];
       if (recorded?.solved) return recorded;
-      // Unsolved teams still count on points (e.g. placements scored at the buzzer).
-      const points = this.instances.get(t.id)?.score().points;
-      return teamResult(t.id, false, points !== undefined ? { points } : undefined);
+      // Unsolved teams still count on points (e.g. placements scored at the buzzer, or grabs in
+      // a puzzle everyone plays to the end), with whatever tie-break time the puzzle reports.
+      const score = this.instances.get(t.id)?.score();
+      return teamResult(t.id, false, score?.points !== undefined ? score : undefined);
     });
   }
 

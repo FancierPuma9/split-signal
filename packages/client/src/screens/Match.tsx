@@ -7,7 +7,7 @@ import {
   type RoundSummary,
   type TeamRoundResult,
 } from '@split-signal/shared';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { GameState } from '../game/reducer';
 import type { GameActions } from '../game/useGame';
 import { PuzzleHost } from '../puzzle/PuzzleHost';
@@ -42,6 +42,7 @@ export function Match({
   actions,
 }: MatchProps) {
   const { view } = match;
+  const [hearing, setHearing] = useState<string | null>(null);
   const running = !view.paused && view.phaseRemainingMs !== null;
   const remainingMs = useCountdown(view.phaseRemainingMs ?? 0, match.receivedAt, running);
   const myTeam = view.teams.find((t) => t.players.some((p) => p.id === meId));
@@ -132,10 +133,11 @@ export function Match({
                 meId={meId}
                 nameOf={(id) => playerName(view, id)}
                 recording={recording}
+                hearing={hearing}
                 onRecord={recordClip}
                 onStop={actions.stopClip}
               />
-              <ClipAutoPlayer clips={clips} />
+              <ClipAutoPlayer clips={clips} onHearing={setHearing} />
             </>
           )}
         {view.phase === 'playing' && myTeam && !myTeam.round.solved && showSignalBar && (
@@ -266,9 +268,10 @@ function Intro({ view }: { view: MatchView }) {
       <ul className="intro-facts">
         <li>{describeComms(manifest.comms)}</li>
         <li>
-          {manifest.winCondition === 'race'
-            ? 'Race: the first team to finish wins'
-            : 'Fewest moves wins (ties go to the faster team)'}
+          {manifest.goal ??
+            (manifest.winCondition === 'race'
+              ? 'Race: the first team to finish wins'
+              : 'Fewest moves wins (ties go to the faster team)')}
         </li>
         <li>Time limit: {formatTime(manifest.timeLimitSeconds * 1000)}</li>
       </ul>
@@ -319,11 +322,9 @@ function Scoreboard({
                   <span className={`dot team-${team.id}`} /> {team.name}
                 </td>
                 <td>
-                  {result?.solved
+                  {result?.solved || result?.points !== undefined
                     ? formatResult(result, round.winCondition)
-                    : result?.points !== undefined
-                      ? `${formatResult(result, round.winCondition)} · out of time`
-                      : 'Not solved'}
+                    : 'Not solved'}
                 </td>
                 <td>+{round.points[team.id] ?? 0}</td>
                 <td>{team.score}</td>

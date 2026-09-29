@@ -10,6 +10,7 @@ import {
   type RoundSummary,
   type ServerMessage,
   type Standing,
+  type TeamRoster,
   type TeamRoundResult,
   type TeamScore,
 } from '@split-signal/shared';
@@ -158,8 +159,12 @@ export class MatchEngine {
   }
 
   /** Team membership, for deciding who can hear whom. */
-  get rosters(): Array<{ id: string; playerIds: string[] }> {
-    return this.teams.map((t) => ({ id: t.id, playerIds: t.players.map((p) => p.id) }));
+  get rosters(): TeamRoster[] {
+    return this.teams.map((t) => ({
+      id: t.id,
+      name: t.name,
+      playerIds: t.players.map((p) => p.id),
+    }));
   }
 
   /** Voice state for the topology: timed voice open or closed, who is live under alternation. */

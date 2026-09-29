@@ -1,5 +1,6 @@
 import type { AnyPuzzleServerModule } from '@split-signal/shared';
 import airtime from './airtime/server';
+import badAdvice from './bad-advice/server';
 import colorMix from './color-mix/server';
 import colorSweep from './color-sweep/server';
 import echoClaw from './echo-claw/server';
@@ -7,6 +8,7 @@ import elevators from './elevators/server';
 import ghostInk from './ghost-ink/server';
 import melodySort from './melody-sort/server';
 import padlock from './padlock/server';
+import pickSix from './pick-six/server';
 import pressTheButton from './press-the-button/server';
 import pressTogether from './press-together/server';
 import radioTune from './radio-tune/server';
@@ -33,6 +35,8 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   echoClaw,
   colorSweep,
   airtime,
+  pickSix,
+  badAdvice,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

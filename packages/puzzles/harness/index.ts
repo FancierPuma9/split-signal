@@ -88,7 +88,7 @@ export function createTestTeams(sizes: number[]): { players: PlayerInfo[]; teams
       players.push(player);
       return player.id;
     });
-    return { id: `team-${t + 1}`, playerIds: ids };
+    return { id: `team-${t + 1}`, name: `Team ${t + 1}`, playerIds: ids };
   });
   return { players, teams };
 }
@@ -111,7 +111,10 @@ export class PuzzleDriver<State, View, Action> {
       ? createTestTeams(options.teams ?? [])
       : (() => {
           const players = createTestPlayers(options.players ?? 0);
-          return { players, teams: [{ id: 'team-1', playerIds: players.map((p) => p.id) }] };
+          return {
+            players,
+            teams: [{ id: 'team-1', name: 'Team 1', playerIds: players.map((p) => p.id) }],
+          };
         })();
     this.players = roster.players;
     this.teams = roster.teams;

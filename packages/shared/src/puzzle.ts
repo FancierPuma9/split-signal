@@ -55,6 +55,8 @@ export interface PuzzleManifest {
 
 export interface TeamRoster {
   id: string;
+  /** Display name, e.g. "Red". */
+  name: string;
   playerIds: string[];
 }
 

@@ -1,0 +1,144 @@
+.root {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  width: min(640px, 100%);
+}
+
+.status {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.numbers {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+@media (width < 520px) {
+  .numbers {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.number {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 12px 4px;
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.number small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.face {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.chosen {
+  background: var(--accent);
+  color: #06121a;
+  border-color: var(--accent);
+}
+
+.chosen small {
+  color: #06121a;
+}
+
+.picked {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.picked li {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--team);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.picked li.in {
+  color: var(--text);
+  background: color-mix(in srgb, var(--team) 20%, transparent);
+}
+
+.last {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.last h4 {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.teams {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.team {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border-left: 4px solid var(--team);
+  background: var(--surface-2);
+}
+
+.row {
+  font-size: 0.9rem;
+}
+
+.scored {
+  color: #3ddc84;
+}
+
+.zeroed {
+  color: var(--danger);
+}
+
+.totals {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.total {
+  display: grid;
+  justify-items: center;
+  min-width: 110px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--team);
+}
+
+.total span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.total strong {
+  font-size: 1.6rem;
+}

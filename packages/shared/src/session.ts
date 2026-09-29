@@ -50,7 +50,7 @@ export class PuzzleSession<State = unknown, View = unknown, Action = unknown> {
     this.teamId = options.teamId;
     this.players = options.players;
     this.teams = options.teams ?? [
-      { id: options.teamId, playerIds: options.players.map((p) => p.id) },
+      { id: options.teamId, name: options.teamId, playerIds: options.players.map((p) => p.id) },
     ];
     this.clock = options.clock;
     this.comms = options.comms ?? (() => ({}));

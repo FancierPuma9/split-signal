@@ -228,7 +228,7 @@ describe('sliding grid', () => {
     const ctx: Context = {
       teamId: 't',
       players,
-      teams: [{ id: 't', playerIds: players.map((p) => p.id) }],
+      teams: [{ id: 't', name: 'T', playerIds: players.map((p) => p.id) }],
       elapsedMs: 0,
       rng: createRng('x'),
       comms: {},

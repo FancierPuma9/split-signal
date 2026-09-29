@@ -4,6 +4,7 @@ import elevators from './elevators/server';
 import melodySort from './melody-sort/server';
 import padlock from './padlock/server';
 import pressTheButton from './press-the-button/server';
+import pressTogether from './press-together/server';
 import radioTune from './radio-tune/server';
 import recipeCipher from './recipe-cipher/server';
 import slidingGrid from './sliding-grid/server';
@@ -25,7 +26,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */
-export const devPuzzles: readonly AnyPuzzleServerModule[] = [pressTheButton];
+export const devPuzzles: readonly AnyPuzzleServerModule[] = [pressTheButton, pressTogether];
 
 export function findPuzzle(id: string): AnyPuzzleServerModule | undefined {
   return [...puzzles, ...devPuzzles].find((p) => p.manifest.id === id);

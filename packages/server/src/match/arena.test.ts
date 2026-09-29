@@ -101,6 +101,28 @@ describe('MatchEngine: arena money', () => {
   });
 });
 
+describe('MatchEngine: alternating voice', () => {
+  it('shows only the live player their room, and swaps views when control swaps', () => {
+    const walkie = findPuzzle('walkie')!;
+    const { box, run } = setup([walkie]);
+    const roles = () =>
+      ['r1', 'r2'].map((id) => (box(id).last('match.view')?.view as { role: string }).role);
+    const first = roles();
+    expect([...first].sort()).toEqual(['listening', 'live']);
+    // Same seat live on every team: the swap schedule is seeded per round, not per team.
+    const blue = ['b1', 'b2'].map(
+      (id) => (box(id).last('match.view')?.view as { role: string }).role,
+    );
+    expect(blue).toEqual(first);
+    run(40_000);
+    const swapped = roles();
+    expect(swapped).not.toEqual(first);
+    expect(box('r1').last('comms.state')?.state.activePlayerId).toBe(
+      swapped[0] === 'live' ? 'r1' : 'r2',
+    );
+  });
+});
+
 interface SignalState {
   log: Array<{ from: string; signal: string; to?: string }>;
   round: number;

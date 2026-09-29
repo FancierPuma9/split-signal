@@ -1,0 +1,116 @@
+.root {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  width: 100%;
+}
+
+.progress {
+  margin: 0;
+  opacity: 0.7;
+}
+
+.phrase {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 1.9rem;
+  line-height: 1.3;
+}
+
+.char {
+  display: inline-block;
+  min-width: 0.7em;
+  padding: 0 1px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.done {
+  color: #30a46c;
+}
+
+.todo {
+  opacity: 0.45;
+}
+
+.next {
+  opacity: 1;
+  background: rgb(255 255 255 / 12%);
+  box-shadow: inset 0 -3px 0 #4cc9f0;
+}
+
+.yours {
+  background: rgb(76 201 240 / 25%);
+  box-shadow: inset 0 -3px 0 #4cc9f0;
+}
+
+.space {
+  opacity: 0.35;
+}
+
+.shake {
+  animation: shake 0.35s ease;
+}
+
+@keyframes shake {
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+
+.message {
+  min-height: 1.5em;
+  margin: 0;
+  font-weight: 600;
+}
+
+.error {
+  color: #e5484d;
+}
+
+.nudge {
+  color: #ffc53d;
+}
+
+.keyboard {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.row {
+  display: flex;
+  gap: 5px;
+}
+
+.key {
+  width: 40px;
+  height: 44px;
+  padding: 0;
+  border-radius: 7px;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  background: #20242c;
+  color: rgb(232 234 238 / 35%);
+  border: 1px solid #2c313b;
+}
+
+.owned {
+  background: #4cc9f0;
+  color: #06121a;
+  border-color: #4cc9f0;
+  font-weight: 800;
+}
+
+.spacebar {
+  width: 260px;
+}

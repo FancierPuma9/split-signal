@@ -1,0 +1,183 @@
+.root {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  width: 100%;
+}
+
+.status {
+  margin: 0;
+  min-height: 1.5em;
+  text-align: center;
+}
+
+.turnBar {
+  width: min(360px, 100%);
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 10%);
+  overflow: hidden;
+}
+
+.turnFill {
+  height: 100%;
+  background: var(--player);
+  transition: width 0.25s linear;
+}
+
+.board {
+  position: relative;
+  display: grid;
+  gap: var(--gap);
+  padding: var(--gap);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 10%);
+}
+
+.cell {
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 5%);
+}
+
+.target,
+.tile {
+  position: absolute;
+  top: var(--gap);
+  left: var(--gap);
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: calc(var(--cell) * 0.38);
+}
+
+.target {
+  border: 2px dashed var(--player);
+  color: var(--player);
+  opacity: 0.55;
+}
+
+.tile {
+  border: none;
+  padding: 0;
+  background: var(--player);
+  color: #111;
+  cursor: pointer;
+  transition: transform 0.35s ease;
+  box-shadow: 0 3px 0 rgb(0 0 0 / 35%);
+}
+
+.tile:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+.selected {
+  box-shadow:
+    0 0 0 3px #fff,
+    0 3px 0 rgb(0 0 0 / 35%);
+}
+
+.placed::after {
+  content: '✓';
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: calc(var(--cell) * 0.22);
+}
+
+.planned {
+  position: absolute;
+  bottom: 2px;
+  font-size: calc(var(--cell) * 0.26);
+}
+
+/* Two identical animations: alternating between them by turn restarts the shake. */
+.bumpA {
+  animation: bumpA 0.4s ease;
+}
+
+.bumpB {
+  animation: bumpB 0.4s ease;
+}
+
+@keyframes bumpA {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  20% {
+    translate: -6px 0;
+  }
+  40% {
+    translate: 6px 0;
+  }
+  60% {
+    translate: -4px 0;
+  }
+  80% {
+    translate: 4px 0;
+  }
+}
+
+@keyframes bumpB {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  20% {
+    translate: -6px 0;
+  }
+  40% {
+    translate: 6px 0;
+  }
+  60% {
+    translate: -4px 0;
+  }
+  80% {
+    translate: 4px 0;
+  }
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, 48px);
+  grid-template-rows: repeat(2, 44px);
+  gap: 6px;
+}
+
+.controls button {
+  padding: 0;
+  font-size: 1.25rem;
+}
+
+.up {
+  grid-column: 2;
+}
+
+.left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.down {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  text-align: center;
+}

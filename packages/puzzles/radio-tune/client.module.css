@@ -1,0 +1,100 @@
+.root {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  text-align: center;
+  width: min(520px, 100%);
+}
+
+.note {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.radio {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  padding: 18px;
+  border-radius: 16px;
+  background: linear-gradient(#3a3226, #2a241b);
+  border: 2px solid #5c4b33;
+  box-shadow: inset 0 2px 10px rgb(0 0 0 / 40%);
+}
+
+.row {
+  display: flex;
+  justify-content: space-around;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.control {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  min-width: 120px;
+}
+
+.label {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e0c48f;
+}
+
+.value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #ffe2a8;
+}
+
+.knob {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.knob button {
+  width: 36px;
+  padding: 4px 0;
+}
+
+.switch {
+  min-width: 90px;
+  background: #2a241b;
+  border: 2px solid #5c4b33;
+  color: #e0c48f;
+}
+
+.switchOn {
+  background: #ffc53d;
+  color: #2a241b;
+  border-color: #ffc53d;
+}
+
+.record {
+  font-size: 1.1rem;
+  padding: 14px 28px;
+  border-radius: 999px;
+}
+
+.recording {
+  background: #e5484d;
+  color: #fff;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 10px rgb(229 72 77 / 25%);
+  }
+}
+
+.onAir {
+  font-weight: 700;
+  color: #ffc53d;
+  min-height: 1.5em;
+  margin: 0;
+}

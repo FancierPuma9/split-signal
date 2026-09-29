@@ -1,0 +1,130 @@
+.root {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  width: 100%;
+}
+
+.status {
+  margin: 0;
+  text-align: center;
+}
+
+.turnBar {
+  width: min(360px, 100%);
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 10%);
+  overflow: hidden;
+}
+
+.turnFill {
+  height: 100%;
+  background: #f5b041;
+  transition: width 0.25s linear;
+}
+
+.layout {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.building {
+  display: grid;
+  gap: 4px;
+}
+
+.floorRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.floorLabel {
+  width: 64px;
+  font-size: 0.85rem;
+  text-align: right;
+  padding-right: 6px;
+}
+
+.waiting {
+  display: block;
+  font-size: 0.72rem;
+  opacity: 0.6;
+}
+
+.cell {
+  width: 72px;
+  height: 40px;
+  padding: 0;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  color: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.cell:not(:disabled):hover {
+  border-color: #f5b041;
+}
+
+.mine {
+  background: rgb(245 176 65 / 30%);
+  border-color: #f5b041;
+}
+
+.served {
+  background: rgb(48 164 108 / 35%);
+  border-color: #30a46c;
+}
+
+.empty,
+.blocked {
+  background: rgb(229 72 77 / 18%);
+  border-color: rgb(229 72 77 / 60%);
+}
+
+.head {
+  width: 72px;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.lobby {
+  display: grid;
+  gap: 6px;
+  width: 200px;
+}
+
+.lobby h4 {
+  margin: 0;
+}
+
+.groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.group {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+  font-size: 0.85rem;
+}
+
+.summary {
+  margin: 0;
+  max-width: 560px;
+  text-align: center;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}

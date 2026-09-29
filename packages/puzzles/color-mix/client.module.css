@@ -1,0 +1,74 @@
+.root {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  width: min(420px, 100%);
+}
+
+.label {
+  margin: 0;
+  text-align: center;
+}
+
+.swatch {
+  width: 220px;
+  height: 220px;
+  border-radius: 20px;
+  border: 3px solid rgb(255 255 255 / 15%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+  transition: background-color 0.15s linear;
+}
+
+.sliders {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+}
+
+.slider {
+  display: grid;
+  grid-template-columns: 56px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider input {
+  width: 100%;
+  accent-color: var(--channel);
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.name {
+  font-weight: 700;
+  color: var(--channel);
+}
+
+.value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.hold {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  font-weight: 700;
+  color: #30a46c;
+}
+
+.holdBar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 10%);
+  overflow: hidden;
+}
+
+.holdFill {
+  height: 100%;
+  background: #30a46c;
+  transition: width 0.2s linear;
+}

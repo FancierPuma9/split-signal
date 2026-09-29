@@ -1,0 +1,78 @@
+.root {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  text-align: center;
+  width: min(520px, 100%);
+}
+
+.note {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.big {
+  font-size: 1.1rem;
+  padding: 12px 24px;
+}
+
+.slots {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.slot {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.index {
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
+.tile {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  font-size: 1.9rem;
+  background: #2a2e37;
+  color: #e8eaee;
+  border: 2px solid #4a5060;
+  padding: 0;
+}
+
+.mine {
+  border-color: #b388ff;
+}
+
+.theirs {
+  opacity: 0.55;
+}
+
+.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 30%);
+  transform: translateY(-4px);
+}
+
+.wave {
+  display: flex;
+  gap: 6px;
+  height: 40px;
+  align-items: flex-end;
+}
+
+.bar {
+  width: 10px;
+  border-radius: 3px;
+  background: #4cc9f0;
+  opacity: 0.25;
+}
+
+.lit {
+  opacity: 1;
+}

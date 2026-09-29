@@ -1,0 +1,196 @@
+import {
+  normalizeRoomCode,
+  type ClientMessage,
+  type LobbySettings,
+  type ServerMessage,
+} from '@split-signal/shared';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import { GameSocket } from '../net/socket';
+import { ClipRecorder, blobToBase64 } from '../voice/clip-recorder';
+import { VoiceManager } from '../voice/voice-manager';
+import { gameReducer, initialGameState } from './reducer';
+import { storage } from './storage';
+
+/** The room code in the URL (/BCDF), if any. */
+export function codeFromUrl(): string | null {
+  return normalizeRoomCode(location.pathname.replace(/^\/+/, ''));
+}
+
+function setUrlCode(code: string | null): void {
+  const path = code ? `/${code}` : '/';
+  if (location.pathname !== path) history.replaceState(null, '', path);
+}
+
+/** Connection, game state, and actions for the whole app. */
+export function useGame() {
+  const [state, dispatch] = useReducer(gameReducer, initialGameState);
+  // The room we are in or trying to get back into; survives socket reconnects.
+  const target = useRef<string | null>(codeFromUrl());
+  // The seat token this tab holds, or last asked to rejoin with.
+  const heldToken = useRef<string | null>(null);
+  // Owned by the effect rather than the module, so hot reloads and StrictMode's double mount get a
+  // fresh socket instead of a stale one.
+  const socketRef = useRef<GameSocket | null>(null);
+  const [voice] = useState(() => new VoiceManager());
+  const voiceState = useSyncExternalStore(voice.subscribe, voice.getSnapshot);
+  const [recorder] = useState(() => new ClipRecorder());
+  const [recording, setRecording] = useState(false);
+
+  useEffect(() => {
+    const socket = new GameSocket();
+    socketRef.current = socket;
+    voice.setTransport((to, data) => socket.send({ type: 'comms.rtc', to, data }));
+    const onMessage = (message: ServerMessage) => {
+      switch (message.type) {
+        case 'room.joined':
+          target.current = message.code;
+          heldToken.current = message.seatToken;
+          voice.setSelf(message.playerId);
+          storage.claimSeat(message.code, { token: message.seatToken, name: message.name });
+          setUrlCode(message.code);
+          // The mic is requested once, on first join, not per round.
+          void voice.requestMic();
+          break;
+        case 'room.closed':
+          if (target.current) {
+            // A 'replaced' seat lives on in another tab, which shares the saved token.
+            if (message.cause === 'replaced') storage.releaseSeat(target.current);
+            else if (heldToken.current) storage.forgetSeat(target.current, heldToken.current);
+          }
+          target.current = null;
+          heldToken.current = null;
+          setUrlCode(null);
+          voice.setSelf(null);
+          voice.closeAll();
+          break;
+        case 'room.rejoinFailed':
+          if (heldToken.current) storage.forgetSeat(message.code, heldToken.current);
+          target.current = null;
+          heldToken.current = null;
+          break;
+        case 'comms.config':
+          voice.setIceServers(message.iceServers);
+          return;
+        case 'comms.peers':
+          voice.setPeers(message.peers);
+          return;
+        case 'comms.rtc':
+          void voice.handleSignal(message.from, message.data);
+          return;
+      }
+      dispatch({ type: 'server', message, at: performance.now() });
+    };
+
+    const offMessage = socket.onMessage(onMessage);
+    const offStatus = socket.onStatus((status) => {
+      dispatch({ type: 'connection', status });
+      // A new socket means a new epoch on the server; old voice connections are stale.
+      if (status === 'closed') voice.closeAll();
+      // The tab holding a seat reclaims it whenever the socket (re)opens: reloads, network drops.
+      const code = target.current;
+      const token = code && storage.activeToken(code);
+      if (status === 'open' && code && token) {
+        heldToken.current = token;
+        socket.send({ type: 'room.rejoin', code, seatToken: token });
+      }
+    });
+    socket.connect();
+    return () => {
+      offMessage();
+      offStatus();
+      socket.close();
+      voice.closeAll();
+      voice.setTransport(null);
+      if (socketRef.current === socket) socketRef.current = null;
+    };
+  }, [voice]);
+
+  const noticeId = state.notice?.id;
+  useEffect(() => {
+    if (noticeId === undefined) return;
+    const timer = setTimeout(() => dispatch({ type: 'dismissNotice', id: noticeId }), 3500);
+    return () => clearTimeout(timer);
+  }, [noticeId]);
+
+  const send = useCallback((message: ClientMessage) => {
+    const socket = socketRef.current;
+    if (socket?.status !== 'open') {
+      dispatch({ type: 'notice', text: 'Not connected to the server', at: performance.now() });
+      return;
+    }
+    socket.send(message);
+  }, []);
+
+  const actions = useMemo(
+    () => ({
+      create: (name: string) => {
+        storage.setName(name);
+        send({ type: 'room.create', name });
+      },
+      join: (code: string, name: string) => {
+        storage.setName(name);
+        send({ type: 'room.join', code, name });
+      },
+      /** Take back a seat saved in this browser (e.g. after closing the tab). */
+      rejoin: (code: string, token: string) => {
+        heldToken.current = token;
+        send({ type: 'room.rejoin', code, seatToken: token });
+      },
+      leave: () => send({ type: 'room.leave' }),
+      settings: (settings: Partial<LobbySettings>) => send({ type: 'lobby.settings', settings }),
+      sit: (teamId: string | null, seat?: number) =>
+        send(
+          seat === undefined
+            ? { type: 'lobby.seat', teamId }
+            : { type: 'lobby.seat', teamId, seat },
+        ),
+      lock: (locked: boolean) => send({ type: 'lobby.lock', locked }),
+      start: () => send({ type: 'lobby.start' }),
+      act: (payload: unknown) => send({ type: 'match.action', payload }),
+      signal: (signal: string) => send({ type: 'comms.signal', signal }),
+      surrender: () => send({ type: 'match.surrender' }),
+      playAgain: () => send({ type: 'match.playAgain' }),
+      backToLobby: () => send({ type: 'match.backToLobby' }),
+      setMuted: (muted: boolean) => voice.setMuted(muted),
+      enableMic: () => void voice.requestMic(),
+      /** Records a clip (until stopClip or maxSeconds) and uploads it. */
+      recordClip: async (maxSeconds: number) => {
+        const notice = (text: string) => dispatch({ type: 'notice', text, at: performance.now() });
+        const mic = voice.getMicStream();
+        if (!mic) {
+          notice('Allow microphone access to record clips');
+          void voice.requestMic();
+          return;
+        }
+        setRecording(true);
+        try {
+          const { blob, durationMs } = await recorder.record(mic, maxSeconds * 1000);
+          send({
+            type: 'comms.clip',
+            mime: blob.type,
+            data: await blobToBase64(blob),
+            durationMs: Math.round(durationMs),
+          });
+        } catch (error) {
+          notice(error instanceof Error ? error.message : 'Recording failed');
+        } finally {
+          setRecording(false);
+        }
+      },
+      stopClip: () => recorder.stop(),
+    }),
+    [send, voice, recorder],
+  );
+
+  return { state, voice: voiceState, recording, actions };
+}
+
+export type GameActions = ReturnType<typeof useGame>['actions'];

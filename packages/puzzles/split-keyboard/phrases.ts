@@ -1,0 +1,38 @@
+// Lowercase letters, spaces and apostrophes only, so every character is a key someone owns.
+export const PHRASES = [
+  'pass the salt please',
+  'who ate my sandwich',
+  'the cat is on the roof',
+  'turn left at the big tree',
+  'nobody move a muscle',
+  'we need a bigger boat',
+  'is it lunch time yet',
+  'my socks do not match',
+  'the floor is lava',
+  'keep calm and type on',
+  'that was not my fault',
+  'a penguin walks into a bar',
+  'mind the gap',
+  'bring snacks next time',
+  'who left the fridge open',
+  'the plan is going well',
+  'please stop humming',
+  'i can explain everything',
+  'nothing to see here',
+  'the dog ate my homework',
+  'where did i park the car',
+  'you are on mute',
+  'can everyone see my screen',
+  'it works on my machine',
+  'just five more minutes',
+  "we're going to need a map",
+  'never trust a quiet room',
+  'the soup is too hot',
+  'someone call the plumber',
+  'this is fine',
+  'the owls are not what they seem',
+  'do not feed the ducks',
+];
+
+/** Every key on the shared keyboard. */
+export const KEYS = [...'abcdefghijklmnopqrstuvwxyz', ' ', "'"];

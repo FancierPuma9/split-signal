@@ -43,7 +43,7 @@ export function Lobby({ room, meId, actions }: LobbyProps) {
                   <li key={seat} className={`seat-taken${player.connected ? '' : ' away'}`}>
                     <span>
                       {player.name}
-                      {player.id === room.hostId && <span title="Host"> ★</span>}
+                      {player.id === room.hostId && <span className="muted small"> ★ host</span>}
                       {mine && <span className="muted"> (you)</span>}
                       {!player.connected && <span className="muted"> · reconnecting</span>}
                     </span>

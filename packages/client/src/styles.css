@@ -43,6 +43,8 @@ h3 {
 
 button {
   font: inherit;
+  /* No double-tap zoom when tapping the same control quickly (dials, keys, arrows). */
+  touch-action: manipulation;
   padding: 8px 16px;
   border-radius: 8px;
   border: 1px solid transparent;
@@ -149,6 +151,7 @@ th {
 
 .topbar h1 {
   font-size: 1.25rem;
+  white-space: nowrap;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   background-clip: text;
   color: transparent;
@@ -265,7 +268,7 @@ th {
   display: grid;
   gap: 14px;
   width: min(480px, 92vw);
-  max-height: 85vh;
+  max-height: 85dvh;
   overflow: auto;
 }
 
@@ -537,6 +540,8 @@ th {
 /* Match */
 .match {
   display: grid;
+  /* minmax(0, …) so a wide puzzle shrinks to the screen instead of widening the page. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 
@@ -719,7 +724,16 @@ th {
   padding: 10px 18px;
   border-radius: 999px;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   touch-action: none;
+}
+
+/* Keyboard shortcuts mean nothing on a touch screen. */
+@media (pointer: coarse) {
+  .key-hint {
+    display: none;
+  }
 }
 
 .talking {
@@ -750,6 +764,12 @@ th {
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
+}
+
+.budgets li > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .budget-track {
@@ -842,7 +862,10 @@ th {
 
 .notice {
   position: fixed;
-  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  /* A toast shouldn't swallow taps meant for the controls under it. */
+  pointer-events: none;
+  z-index: 30;
   left: 50%;
   transform: translateX(-50%);
   padding: 10px 18px;
@@ -858,4 +881,102 @@ th {
 
 .error-box pre {
   white-space: pre-wrap;
+}
+
+.sound-prompt {
+  display: block;
+  width: 100%;
+  margin-bottom: 16px;
+  background: color-mix(in srgb, var(--warn) 18%, var(--surface));
+  border-color: var(--warn);
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* Phones */
+@media (width < 600px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 10px 16px;
+  }
+
+  .topbar h1 {
+    font-size: 1.1rem;
+  }
+
+  .topbar-end {
+    gap: 10px;
+  }
+
+  /* Who you can hear gets its own row rather than being squeezed out. */
+  .voice-status {
+    order: 3;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  /* Just the colored dot; the word is still there for screen readers. */
+  .conn {
+    font-size: 0;
+  }
+
+  .conn::before {
+    margin-right: 0;
+  }
+
+  .voice-status .small {
+    white-space: normal;
+  }
+
+  .mic {
+    min-height: 36px;
+  }
+
+  button.link {
+    min-height: 36px;
+  }
+
+  .stepper-controls button {
+    width: 44px;
+    min-height: 40px;
+  }
+
+  /* Keep the comms controls (push-to-talk, signals, whose turn to talk) on screen while
+     scrolling through a tall puzzle. */
+  .clip-bar,
+  .signal-bar,
+  .comms-banner {
+    position: sticky;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    z-index: 10;
+    box-shadow: 0 -6px 18px rgb(0 0 0 / 45%);
+  }
+
+  .main {
+    padding: 16px 12px 64px;
+  }
+
+  .match {
+    gap: 14px;
+  }
+
+  .puzzle {
+    padding: 14px 10px;
+  }
+
+  .timer {
+    font-size: 1.6rem;
+  }
+
+  .hud {
+    gap: 8px;
+  }
+
+  .hud-right {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
 }

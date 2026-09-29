@@ -54,3 +54,7 @@ puzzle's rule while playing. The server relays `comms.rtc` only between current 
 - Seat tokens: saved per room as a list in localStorage; sessionStorage marks which seat a tab holds.
   Only that tab auto-rejoins, so one-tab-per-player testing works.
 - TypeScript is pinned to 6.0.x because typescript-eslint doesn't support 7.x yet.
+- Phones: play every sound through `packages/puzzles/lib/audio.ts` (one shared AudioContext that
+  taps unlock; iOS won't start audio outside a gesture, and most game sound is server-triggered).
+  Held arrow pads use `lib/useHoldRepeat.ts`. Phone layout lives in `@media (width < 600px)` blocks;
+  check puzzles at 375px wide.

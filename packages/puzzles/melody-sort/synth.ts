@@ -1,13 +1,6 @@
 // A tiny Web Audio synth: no audio files, and it only ever runs on the Listener's device.
 
-let context: AudioContext | null = null;
-
-function audio(): AudioContext | null {
-  if (typeof AudioContext === 'undefined') return null;
-  context ??= new AudioContext();
-  if (context.state === 'suspended') void context.resume();
-  return context;
-}
+import { audioContext as audio } from '../lib/audio';
 
 const frequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 

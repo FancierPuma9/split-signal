@@ -19,7 +19,7 @@ export default function BadAdvice({ view, send, signals, timer }: PuzzleClientPr
   const moving = view.phase === 'move' && !view.over && !mine.home;
 
   return (
-    <div className={styles.root}>
+    <div className={`${styles.root} ${hinting ? styles.hinting : ''}`}>
       <p className={styles.status}>
         Turn {Math.min(view.turn + 1, view.turnCap)} of {view.turnCap} ·{' '}
         {view.over ? 'over' : hinting ? `send hints: ${secondsLeft}s` : `move: ${secondsLeft}s`}

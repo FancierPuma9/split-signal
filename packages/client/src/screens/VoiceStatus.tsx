@@ -23,7 +23,8 @@ export function VoiceStatus({ voice, nameOf, onMute, onEnableMic }: VoiceStatusP
   const click = () => {
     if (voice.mic === 'on') onMute(true);
     else if (voice.mic === 'muted') onMute(false);
-    else if (voice.mic === 'off') onEnableMic();
+    // Asking again after a refusal works if the player has since allowed it in site settings.
+    else if (voice.mic === 'off' || voice.mic === 'blocked') onEnableMic();
   };
 
   return (
@@ -33,19 +34,17 @@ export function VoiceStatus({ voice, nameOf, onMute, onEnableMic }: VoiceStatusP
         onClick={click}
         disabled={voice.mic === 'requesting' || voice.mic === 'unsupported'}
         aria-label={MIC_LABELS[voice.mic]}
-        title={
-          voice.mic === 'blocked'
-            ? 'Allow microphone access in your browser settings, then reload'
-            : undefined
-        }
       >
         {MIC_LABELS[voice.mic]}
       </button>
       <span className="small muted">
-        {voice.peers.length === 0
-          ? 'Voice off'
-          : `Voice with ${connected.map((p) => nameOf(p.id)).join(', ') || 'nobody yet'}`}
-        {connecting.length > 0 && ` (connecting ${connecting.length})`}
+        {voice.mic === 'blocked'
+          ? // Shown, not a tooltip: phones have no hover.
+            'Allow the microphone for this site in your browser settings, then tap Mic blocked.'
+          : voice.peers.length === 0
+            ? 'Voice off'
+            : `Voice with ${connected.map((p) => nameOf(p.id)).join(', ') || 'nobody yet'}`}
+        {voice.mic !== 'blocked' && connecting.length > 0 && ` (connecting ${connecting.length})`}
       </span>
     </div>
   );

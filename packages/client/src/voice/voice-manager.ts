@@ -1,3 +1,4 @@
+import { forgetMedia, playWhenAllowed } from '@split-signal/puzzles/audio';
 import type { IceServerConfig, RtcPayload, VoicePeer } from '@split-signal/shared';
 
 export type MicState = 'off' | 'requesting' | 'on' | 'muted' | 'blocked' | 'unsupported';
@@ -69,9 +70,20 @@ export class VoiceManager {
     if (!navigator.mediaDevices?.getUserMedia) return this.setMic('unsupported');
     this.setMic('requesting');
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
+      this.stream = stream;
+      // Phones can end capture behind our back (a call, Siri, backgrounding). Say so instead of
+      // showing "Mic on" while sending silence; tapping the mic button asks again.
+      for (const track of stream.getAudioTracks()) {
+        track.onended = () => {
+          if (this.stream !== stream) return;
+          this.stream = null;
+          this.setMic('off');
+          for (const peer of this.peers.values()) void this.attachTrack(peer);
+        };
+      }
       this.setMic('on');
       for (const peer of this.peers.values()) void this.attachTrack(peer);
     } catch {
@@ -158,9 +170,8 @@ export class VoiceManager {
 
     pc.ontrack = (event) => {
       audio.srcObject = event.streams[0] ?? new MediaStream([event.track]);
-      audio.play().catch(() => {
-        // Autoplay can be refused before any user gesture; joining a room counts as one.
-      });
+      // Refused before a tap on some phones (e.g. after a reload); retried on the next tap.
+      playWhenAllowed(audio);
     };
     pc.onicecandidate = ({ candidate }) => {
       if (!candidate) return;
@@ -216,6 +227,7 @@ export class VoiceManager {
     peer.pc.close();
     peer.audio.srcObject = null;
     peer.audio.remove();
+    forgetMedia(peer.audio);
   }
 
   private setMic(mic: MicState): void {

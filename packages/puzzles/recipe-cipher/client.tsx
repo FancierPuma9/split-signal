@@ -53,6 +53,12 @@ function Instructions({ lines, glyphById }: { lines: string[][]; glyphById: Map<
   const [guesses, setGuesses] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<string | null>(null);
 
+  const note = (letter: string) => {
+    if (!selected) return;
+    setGuesses((g) => ({ ...g, [selected]: letter }));
+    setSelected(null);
+  };
+
   useEffect(() => {
     if (!selected) return;
     const onKey = (e: KeyboardEvent) => {
@@ -75,8 +81,8 @@ function Instructions({ lines, glyphById }: { lines: string[][]; glyphById: Map<
     <section className={styles.panel}>
       <h4>The recipe</h4>
       <p className={styles.hint}>
-        Only you can see this. Describe the glyphs to whoever has the key. Click a glyph and type a
-        letter to note your guess.
+        Only you can see this. Describe the glyphs to whoever has the key. Tap a glyph, then a
+        letter, to note your guess.
       </p>
       <ol className={styles.lines}>
         {lines.map((line, i) => (
@@ -99,6 +105,22 @@ function Instructions({ lines, glyphById }: { lines: string[][]; glyphById: Map<
           </li>
         ))}
       </ol>
+      {selected && (
+        // On-screen letters, so noting works without a keyboard (phones). Typing works too.
+        <div className={styles.letterPicker} role="group" aria-label="Note a letter">
+          {[...'abcdefghijklmnopqrstuvwxyz'].map((letter) => (
+            <button key={letter} onClick={() => note(letter)}>
+              {letter}
+            </button>
+          ))}
+          <button className={styles.pickerWide} onClick={() => note('')}>
+            Clear
+          </button>
+          <button className={styles.pickerWide} onClick={() => setSelected(null)}>
+            Cancel
+          </button>
+        </div>
+      )}
     </section>
   );
 }

@@ -4,6 +4,13 @@ import styles from './client.module.css';
 import type { Action, View } from './types';
 
 const ROWS = ['qwertyuiop', "asdfghjkl'", 'zxcvbnm'];
+/** Splits a phrase into words, each keeping its trailing spaces and its index in the phrase. */
+function words(phrase: string): Array<{ start: number; text: string }> {
+  return [...phrase.matchAll(/\S*\s*/g)]
+    .filter((m) => m[0] !== '')
+    .map((m) => ({ start: m.index, text: m[0] }));
+}
+
 /** How long a teammate's nudge stays on screen. */
 const NUDGE_MS = 1800;
 
@@ -56,18 +63,25 @@ export default function SplitKeyboard({
 
       {/* Re-keyed on each mistake so the shake replays. */}
       <div key={error?.id ?? 0} className={`${styles.phrase} ${error ? styles.shake : ''}`}>
-        {[...view.phrase].map((ch, i) => {
-          const state = i < view.typed ? styles.done : i === view.typed ? styles.next : styles.todo;
-          const yours = i === view.typed && mine.has(ch);
-          return (
-            <span
-              key={i}
-              className={`${styles.char} ${state} ${yours ? styles.yours : ''} ${ch === ' ' && i >= view.typed ? styles.space : ''}`}
-            >
-              {ch === ' ' ? '·' : ch}
-            </span>
-          );
-        })}
+        {/* Each word (with the space after it) is kept together, so lines break between words. */}
+        {words(view.phrase).map((word) => (
+          <span key={word.start} className={styles.word}>
+            {[...word.text].map((ch, j) => {
+              const i = word.start + j;
+              const state =
+                i < view.typed ? styles.done : i === view.typed ? styles.next : styles.todo;
+              const yours = i === view.typed && mine.has(ch);
+              return (
+                <span
+                  key={i}
+                  className={`${styles.char} ${state} ${yours ? styles.yours : ''} ${ch === ' ' && i >= view.typed ? styles.space : ''}`}
+                >
+                  {ch === ' ' ? '·' : ch}
+                </span>
+              );
+            })}
+          </span>
+        ))}
       </div>
 
       <p

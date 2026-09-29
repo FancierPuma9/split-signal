@@ -36,7 +36,7 @@
 }
 
 .large {
-  width: min(320px, 85vw);
+  width: min(320px, 100%);
 }
 
 .cell,
@@ -156,8 +156,8 @@
 }
 
 .hintPad button {
-  min-width: 38px;
-  height: 34px;
+  min-width: 40px;
+  height: 38px;
   font-size: 1rem;
 }
 
@@ -175,4 +175,28 @@
 
 .right {
   grid-area: right;
+}
+
+/* Phones: two boards per row, so hinting everyone in ten seconds doesn't need a long scroll. */
+@media (width < 600px) {
+  .others {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 8px;
+    width: 100%;
+  }
+
+  .other .grid {
+    width: 100%;
+  }
+
+  .hintPad button {
+    min-width: 44px;
+    height: 40px;
+  }
+
+  /* While hinting you're looking at everyone else's boards; yours is full size again for moving. */
+  .hinting .large {
+    width: min(190px, 60%);
+  }
 }

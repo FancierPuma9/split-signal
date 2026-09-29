@@ -1,4 +1,11 @@
-const PREFERRED_TYPES = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'];
+// AAC in MP4 first: every browser can decode it, while older iPhones can't decode WebM/Opus.
+// Safari and recent Chrome record it; Firefox falls through to Opus.
+const PREFERRED_TYPES = [
+  'audio/mp4;codecs=mp4a.40.2',
+  'audio/webm;codecs=opus',
+  'audio/ogg;codecs=opus',
+  'audio/mp4',
+];
 
 /** Records short clips from the microphone with MediaRecorder. */
 export class ClipRecorder {

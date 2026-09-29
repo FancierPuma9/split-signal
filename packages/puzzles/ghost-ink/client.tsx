@@ -1,5 +1,12 @@
 import type { PuzzleClientProps } from '@split-signal/shared';
-import { useRef, useState, type PointerEvent, type ReactNode, type Ref } from 'react';
+import {
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { FadingCanvas } from '../lib/FadingCanvas';
 import styles from './client.module.css';
 import { ASPECT, PALETTE, objectById } from './scene';
@@ -55,7 +62,7 @@ function Placer({ view, send, draw }: { view: PlacerView; send: (a: Action) => v
   // Where we dropped things, shown until the server's copy moves (no snap back while it travels).
   const [dropped, setDropped] = useState<Record<string, { at: Point; was: Point | undefined }>>({});
 
-  const pointAt = (e: PointerEvent): Point => {
+  const pointAt = (e: { clientX: number; clientY: number }): Point => {
     const rect = board.current!.getBoundingClientRect();
     const clamp = (v: number) => Math.min(1, Math.max(0, v));
     return {
@@ -89,7 +96,9 @@ function Placer({ view, send, draw }: { view: PlacerView; send: (a: Action) => v
             <Board
               ref={board}
               className={armed ? styles.armedBoard : undefined}
-              onPointerDown={(e) => {
+              // On click, not pointerdown: on a phone a scroll that starts on the board
+              // shouldn't drop the armed object.
+              onClick={(e) => {
                 if (!armed || locked) return;
                 send({ type: 'place', objectId: armed, ...pointAt(e) });
                 setArmed(null);
@@ -119,6 +128,11 @@ function Placer({ view, send, draw }: { view: PlacerView; send: (a: Action) => v
                       setDropped((d) => ({ ...d, [id]: { at, was: server } }));
                       setDrag(null);
                     }}
+                    // A cancelled drag (the browser took the touch) snaps back.
+                    onPointerCancel={() => setDrag(null)}
+                    onLostPointerCapture={() => setDrag(null)}
+                    // Don't let a tap on a token also place the armed object under it.
+                    onClick={(e) => e.stopPropagation()}
                   />
                 );
               })}
@@ -141,7 +155,6 @@ function Placer({ view, send, draw }: { view: PlacerView; send: (a: Action) => v
                   .join(' ')}
                 disabled={!mine || locked}
                 aria-label={isPlaced && mine ? `Take back the ${o.label.toLowerCase()}` : o.label}
-                title={mine ? undefined : "Your teammate's"}
                 onClick={() => {
                   if (isPlaced) send({ type: 'remove', objectId: o.id });
                   else setArmed(armed === o.id ? null : o.id);
@@ -150,6 +163,7 @@ function Placer({ view, send, draw }: { view: PlacerView; send: (a: Action) => v
                 <span className={styles.icon}>{o.icon}</span>
                 <span>{o.label}</span>
                 {isPlaced && mine && <small>take back</small>}
+                {!mine && <small>partner's</small>}
               </button>
             );
           })}
@@ -204,18 +218,18 @@ function Board({
   children,
   className,
   ref,
-  onPointerDown,
+  onClick,
 }: {
   children: ReactNode;
   className?: string | undefined;
   ref?: Ref<HTMLDivElement>;
-  onPointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
+  onClick?: (e: MouseEvent<HTMLDivElement>) => void;
 }) {
   return (
     <div
       ref={ref}
       className={[styles.board, className].filter(Boolean).join(' ')}
-      onPointerDown={onPointerDown}
+      onClick={onClick}
     >
       {children}
     </div>
@@ -238,6 +252,9 @@ function Token({
   onPointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerMove?: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerUp?: (e: PointerEvent<HTMLDivElement>) => void;
+  onPointerCancel?: (e: PointerEvent<HTMLDivElement>) => void;
+  onLostPointerCapture?: (e: PointerEvent<HTMLDivElement>) => void;
+  onClick?: (e: MouseEvent<HTMLDivElement>) => void;
 }) {
   const object = objectById.get(id);
   return (

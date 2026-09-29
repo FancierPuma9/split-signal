@@ -1,3 +1,4 @@
+import { audioContext, decodeClip, ensureAudio } from '@split-signal/puzzles/audio';
 import type { ClipDelivery, CommsRule, CommsState } from '@split-signal/shared';
 import { useEffect, useRef } from 'react';
 
@@ -68,12 +69,19 @@ export function ClipBar({
         }}
         onPointerUp={onStop}
         onPointerCancel={onStop}
+        onLostPointerCapture={onStop}
+        // A long press on a phone would otherwise open the context menu and cancel the hold.
+        onContextMenu={(e) => e.preventDefault()}
       >
-        {outOfTime
-          ? 'Out of mic time'
-          : recording
-            ? '● Recording… release to send'
-            : '🎙 Hold to talk (or V)'}
+        {outOfTime ? (
+          'Out of mic time'
+        ) : recording ? (
+          '● Recording… release to send'
+        ) : (
+          <>
+            🎙 Hold to talk<span className="key-hint"> (or V)</span>
+          </>
+        )}
       </button>
 
       {hearing && (
@@ -111,7 +119,8 @@ export function ClipBar({
 /**
  * Plays delayed and budget clips as they arrive, clean, cut short at playMs if the budget ran out.
  * Clips that arrive while another is playing play over it rather than cutting it off or waiting:
- * when a clip arrives is part of the puzzle.
+ * when a clip arrives is part of the puzzle. Plays through the shared Web Audio context, which
+ * taps unlock, because phones refuse to start an <audio> element outside a gesture.
  */
 export function ClipAutoPlayer({
   clips,
@@ -122,13 +131,16 @@ export function ClipAutoPlayer({
   onHearing?: (from: string | null) => void;
 }) {
   const heard = useRef(clips.at(-1)?.id ?? 0);
-  const playing = useRef(new Map<HTMLAudioElement, string>());
+  const playing = useRef(new Map<AudioBufferSourceNode, string>());
+  const ended = useRef(false);
 
   // Stop everything when the round (and this component) ends.
   useEffect(() => {
     const current = playing.current;
+    ended.current = false;
     return () => {
-      for (const audio of current.keys()) audio.pause();
+      ended.current = true;
+      for (const source of current.keys()) source.stop();
       current.clear();
     };
   }, []);
@@ -139,23 +151,28 @@ export function ClipAutoPlayer({
     heard.current = Math.max(...fresh.map((c) => c.id));
     const current = playing.current;
     const report = () => onHearing?.([...current.values()].at(-1) ?? null);
-    for (const clip of fresh) {
-      const audio = new Audio(`data:${clip.mime};base64,${clip.data}`);
+    const play = async (clip: ClipDelivery) => {
+      // Still locked (no tap yet on a phone): the "tap to turn on sound" prompt covers it.
+      if (!(await ensureAudio())) return;
+      const buffer = await decodeClip(clip.data);
+      const ctx = audioContext();
+      if (!ctx || ended.current) return;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.onended = () => {
+        current.delete(source);
+        report();
+      };
+      current.set(source, clip.from);
+      report();
       const playMs = (clip.params as { playMs?: unknown } | null)?.playMs;
-      let stop: ReturnType<typeof setTimeout> | undefined;
-      const done = () => {
-        clearTimeout(stop);
-        current.delete(audio);
-        report();
-      };
-      audio.onplay = () => {
-        current.set(audio, clip.from);
-        report();
-        if (typeof playMs === 'number') stop = setTimeout(() => audio.pause(), playMs);
-      };
-      audio.onended = done;
-      audio.onpause = done;
-      audio.play().catch(done);
+      source.start(0, 0, typeof playMs === 'number' ? playMs / 1000 : undefined);
+    };
+    for (const clip of fresh) {
+      play(clip).catch((error: unknown) => {
+        console.warn('[clips] could not play a clip', error);
+      });
     }
   }, [clips, onHearing]);
 

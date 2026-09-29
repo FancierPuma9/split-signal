@@ -10,6 +10,12 @@ import {
 /** How often pen samples are sent while drawing. */
 const BATCH_MS = 50;
 
+/** A short random stroke id. getRandomValues works on plain http too (randomUUID doesn't). */
+function strokeId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 interface Segment {
   x1: number;
   y1: number;
@@ -115,6 +121,8 @@ export function FadingCanvas({
   // Local drawing: collect samples, send one batch every BATCH_MS and a final one on release.
   const stroke = useRef<{
     id: string;
+    /** The finger (or pen, or mouse) drawing it; other pointers are ignored until it lifts. */
+    pointerId: number;
     /** Samples not sent yet; `at` is performance.now(). */
     pending: Array<{ x: number; y: number; at: number }>;
     last: { x: number; y: number } | null;
@@ -144,9 +152,9 @@ export function FadingCanvas({
     }
   };
 
-  const end = () => {
+  const end = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const s = stroke.current;
-    if (!s) return;
+    if (!s || e.pointerId !== s.pointerId) return;
     clearInterval(s.timer);
     flush(true);
     stroke.current = null;
@@ -178,11 +186,13 @@ export function FadingCanvas({
           cursor: canDraw ? 'crosshair' : 'default',
         }}
         onPointerDown={(e) => {
-          if (!canDraw) return;
+          // One stroke at a time: a second finger or a resting palm doesn't start another.
+          if (!canDraw || stroke.current) return;
           e.currentTarget.setPointerCapture(e.pointerId);
           const p = point(e);
           stroke.current = {
-            id: crypto.randomUUID().slice(0, 8),
+            id: strokeId(),
+            pointerId: e.pointerId,
             pending: [{ ...p, at: performance.now() }],
             last: p,
             timer: setInterval(() => flush(false), BATCH_MS),
@@ -190,7 +200,7 @@ export function FadingCanvas({
         }}
         onPointerMove={(e) => {
           const s = stroke.current;
-          if (!s) return;
+          if (!s || e.pointerId !== s.pointerId) return;
           const p = point(e);
           const now = performance.now();
           if (s.last) {

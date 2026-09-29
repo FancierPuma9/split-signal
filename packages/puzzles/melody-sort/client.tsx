@@ -124,7 +124,7 @@ function Arranger({ view, send, timer }: RoleProps<'arranger'>) {
           );
         })}
       </div>
-      <p className={styles.note}>Click two tiles to swap them.</p>
+      <p className={styles.note}>Tap two tiles to swap them.</p>
       <button
         className={styles.big}
         disabled={locked || view.solved}

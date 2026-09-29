@@ -1,7 +1,7 @@
-import type { PuzzleClientProps } from '@split-signal/shared';
-import { useEffect, useRef, useState } from 'react';
+import type { ClipDelivery, PuzzleClientProps } from '@split-signal/shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './client.module.css';
-import { playDistorted } from './distort';
+import { AudioLockedError, playDistorted } from './distort';
 import {
   KNOB_MAX,
   type Action,
@@ -106,7 +106,7 @@ function Sender({ view, clips, signals, me }: Props) {
           disabled={view.solved}
           onClick={() => (clips.recording ? clips.stop() : void clips.record())}
         >
-          {clips.recording ? '● Recording… click to send' : '🎙 Record a clip'}
+          {clips.recording ? '● Recording… tap to send' : '🎙 Record a clip'}
         </button>
       )}
       <p className={styles.note}>
@@ -123,25 +123,33 @@ function Receiver({ view, send, clips, signals }: Props) {
   const latest = clips?.incoming.at(-1);
   const heard = useRef(latest?.id ?? 0);
   const [playing, setPlaying] = useState(false);
+  // Why the latest clip couldn't be heard: sound not unlocked yet (phones), or undecodable.
+  const [problem, setProblem] = useState<'locked' | 'undecodable' | null>(null);
+
+  const play = useCallback((clip: ClipDelivery, isCancelled: () => boolean = () => false) => {
+    setPlaying(true);
+    setProblem(null);
+    playDistorted(clip.data, clip.params as Distortion)
+      .catch((error: unknown) => {
+        if (!isCancelled())
+          setProblem(error instanceof AudioLockedError ? 'locked' : 'undecodable');
+      })
+      .finally(() => {
+        if (!isCancelled()) setPlaying(false);
+      });
+  }, []);
 
   // Play each new clip once as it arrives (not old ones after a reconnect).
   useEffect(() => {
     if (!latest || latest.id <= heard.current) return;
     heard.current = latest.id;
     let cancelled = false;
-    const start = setTimeout(() => setPlaying(true), 0);
-    playDistorted(latest.data, latest.params as Distortion)
-      .catch(() => {
-        // Undecodable audio: nothing to play.
-      })
-      .finally(() => {
-        if (!cancelled) setPlaying(false);
-      });
+    const start = setTimeout(() => play(latest, () => cancelled), 0);
     return () => {
       cancelled = true;
       clearTimeout(start);
     };
-  }, [latest]);
+  }, [latest, play]);
 
   if (view.role !== 'receiver') return null;
   return (
@@ -153,10 +161,15 @@ function Receiver({ view, send, clips, signals }: Props) {
       <p className={styles.onAir} role="status">
         {playing
           ? '📻 Incoming transmission…'
-          : latest
-            ? ''
-            : 'Waiting for the first transmission…'}
+          : problem === 'undecodable'
+            ? "This device couldn't play that clip."
+            : latest
+              ? ''
+              : 'Waiting for the first transmission…'}
       </p>
+      {problem === 'locked' && latest && !playing && (
+        <button onClick={() => play(latest)}>🔊 Tap to hear the transmission</button>
+      )}
       <PanelDisplay
         panel={view.panel}
         onKnob={

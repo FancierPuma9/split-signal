@@ -30,7 +30,10 @@ export default function EchoClaw({ view, send }: PuzzleClientProps<View, Action>
       <p className={styles.hint}>
         {view.role === 'spotter'
           ? `You can see the toy. Everything you say arrives ${delay}s late: tell them where it will be.`
-          : `You can't see the toy. Arrow keys or WASD to move, Space to drop. Your Spotter's words arrive ${delay}s late.`}
+          : `You can't see the toy. Hold the arrows to move, then drop. Your Spotter's words arrive ${delay}s late.`}
+        {view.role !== 'spotter' && (
+          <span className={styles.keys}> (Keyboard: arrow keys or WASD, Space to drop.)</span>
+        )}
       </p>
       <div
         className={styles.machine}
@@ -148,6 +151,12 @@ function Controls({ send, busy }: { send: (action: Action) => void; busy: boolea
         held.current.delete(dir);
         update();
       }}
+      onLostPointerCapture={() => {
+        held.current.delete(dir);
+        update();
+      }}
+      // A long press would otherwise open the context menu on phones and end the hold.
+      onContextMenu={(e) => e.preventDefault()}
     >
       {arrow}
     </button>

@@ -49,9 +49,11 @@ export default function SlidingGrid({ view, send, timer }: PuzzleClientProps<Vie
 
   const cell = view.size <= 4 ? 72 : 60;
   const gap = 6;
-  const at = (x: number, y: number) => `translate(${x * (cell + gap)}px, ${y * (cell + gap)}px)`;
+  const at = (x: number, y: number) =>
+    `translate(calc(${x} * (var(--cell) + var(--gap))), calc(${y} * (var(--cell) + var(--gap))))`;
   const rootStyle = {
-    '--cell': `${cell}px`,
+    // Shrinks on phones: the board, its gaps and the page padding have to fit the screen.
+    '--cell': `min(${cell}px, (100vw - ${60 + gap * (view.size + 1)}px) / ${view.size})`,
     '--gap': `${gap}px`,
     '--player': PLAYER_COLORS[view.colorIndex % PLAYER_COLORS.length],
   } as CSSProperties;
@@ -134,8 +136,12 @@ export default function SlidingGrid({ view, send, timer }: PuzzleClientProps<Vie
         Pass
       </button>
       <p className={styles.hint}>
-        Arrow keys move the selected tile · letters select a tile · space passes. Tiles you bump
-        into belong to your teammates.
+        Tap a tile, then an arrow.
+        <span className={styles.keys}>
+          {' '}
+          Or use the keyboard: letters pick a tile, arrow keys move it, space passes.
+        </span>{' '}
+        Tiles you bump into belong to your teammates.
       </p>
     </div>
   );

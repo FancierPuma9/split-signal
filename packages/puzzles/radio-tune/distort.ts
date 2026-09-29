@@ -1,23 +1,8 @@
+import { audioContext, decodeClip, ensureAudio } from '../lib/audio';
 import type { Distortion } from './types';
 
 // Applies Radio Tune's distortion to a clip and plays it, entirely in Web Audio. Kept as a
 // standalone (clip, params) function so it could move server-side (e.g. ffmpeg) later.
-
-let context: AudioContext | null = null;
-
-function audio(): AudioContext | null {
-  if (typeof AudioContext === 'undefined') return null;
-  context ??= new AudioContext();
-  if (context.state === 'suspended') void context.resume();
-  return context;
-}
-
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
 
 function noiseBuffer(ctx: AudioContext): AudioBuffer {
   const buffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
@@ -31,11 +16,16 @@ function noiseBuffer(ctx: AudioContext): AudioBuffer {
   return buffer;
 }
 
+/** Thrown when sound is still locked: the player has to tap first (phones). */
+export class AudioLockedError extends Error {}
+
 /** Decodes a base64 clip, runs it through the distortion layers, and plays it. */
 export async function playDistorted(data: string, params: Distortion): Promise<void> {
-  const ctx = audio();
+  // A suspended context never finishes playing, so don't start what can't be heard.
+  if (!(await ensureAudio())) throw new AudioLockedError('Tap to turn on sound');
+  const buffer = await decodeClip(data);
+  const ctx = audioContext();
   if (!ctx) return;
-  const buffer = await ctx.decodeAudioData(base64ToArrayBuffer(data));
 
   const source = ctx.createBufferSource();
   source.buffer = buffer;

@@ -57,7 +57,8 @@
 }
 
 .knob button {
-  width: 36px;
+  width: 44px;
+  min-height: 40px;
   padding: 4px 0;
 }
 

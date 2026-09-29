@@ -96,6 +96,9 @@ export default function ColorMix({ view, send, timer }: PuzzleClientProps<View, 
                 disabled={view.solved}
                 onChange={(e) => update(channel, Number(e.target.value), false)}
                 onPointerUp={(e) => update(channel, Number(e.currentTarget.value), true)}
+                // A drag the browser turns into a scroll ends with a cancel, not a pointerup.
+                onPointerCancel={(e) => update(channel, Number(e.currentTarget.value), true)}
+                onBlur={(e) => update(channel, Number(e.currentTarget.value), true)}
                 onKeyUp={(e) => update(channel, Number(e.currentTarget.value), true)}
               />
               <span className={styles.value}>{value}</span>

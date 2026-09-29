@@ -12,7 +12,7 @@
 
 .panels {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 16px;
 }
 
@@ -46,7 +46,7 @@
 .line {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 4px;
   align-items: flex-start;
 }
 
@@ -69,6 +69,27 @@
 .glyphButton.selected {
   border-color: #4cc9f0;
   background: rgb(76 201 240 / 12%);
+}
+
+.letterPicker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 4px;
+}
+
+.letterPicker button {
+  height: 40px;
+  padding: 0;
+  text-transform: uppercase;
+  background: rgb(255 255 255 / 6%);
+  border-color: rgb(255 255 255 / 12%);
+  color: #e8eaee;
+}
+
+.letterPicker .pickerWide {
+  grid-column: span 2;
+  text-transform: none;
+  font-weight: 500;
 }
 
 .guess {
@@ -118,6 +139,7 @@
 }
 
 .small {
+  min-height: 38px;
   padding: 4px 10px;
   font-size: 0.85rem;
 }

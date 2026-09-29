@@ -1,6 +1,7 @@
 import type { PuzzleClientProps } from '@split-signal/shared';
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { Blackout } from '../lib/Blackout';
+import { useHoldRepeat } from '../lib/useHoldRepeat';
 import styles from './client.module.css';
 import type { Action, LiveView, View } from './types';
 
@@ -65,13 +66,18 @@ function Room({ view, send }: { view: LiveView; send: (a: Action) => void }) {
     return () => window.removeEventListener('keydown', down);
   }, []);
 
+  // Held pads repeat at the same pace as a held key.
+  const hold = useHoldRepeat(120);
   const onSwitch = view.switches.find((s) => s.x === view.me.x && s.y === view.me.y);
   const width = view.rows[0]!.length;
 
   return (
     <div className={styles.root}>
       <p className={styles.live}>● You’re live: talk, move, flip</p>
-      <div className={styles.room} style={{ gridTemplateColumns: `repeat(${width}, 1fr)` }}>
+      <div
+        className={styles.room}
+        style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}
+      >
         {view.rows.map((row, y) =>
           [...row].map((t, x) => {
             const gate = t === 'G' ? view.gates.find((g) => g.x === x && g.y === y) : undefined;
@@ -110,28 +116,28 @@ function Room({ view, send }: { view: LiveView; send: (a: Action) => void }) {
           <button
             className={`${styles.pad} ${styles.up}`}
             aria-label="Up"
-            onClick={() => send({ type: 'move', dir: 'n' })}
+            {...hold(() => send({ type: 'move', dir: 'n' }))}
           >
             ▲
           </button>
           <button
             className={`${styles.pad} ${styles.left}`}
             aria-label="Left"
-            onClick={() => send({ type: 'move', dir: 'w' })}
+            {...hold(() => send({ type: 'move', dir: 'w' }))}
           >
             ◀
           </button>
           <button
             className={`${styles.pad} ${styles.right}`}
             aria-label="Right"
-            onClick={() => send({ type: 'move', dir: 'e' })}
+            {...hold(() => send({ type: 'move', dir: 'e' }))}
           >
             ▶
           </button>
           <button
             className={`${styles.pad} ${styles.down}`}
             aria-label="Down"
-            onClick={() => send({ type: 'move', dir: 's' })}
+            {...hold(() => send({ type: 'move', dir: 's' }))}
           >
             ▼
           </button>
@@ -144,7 +150,7 @@ function Room({ view, send }: { view: LiveView; send: (a: Action) => void }) {
       </div>
       <p className={styles.hint}>
         Your switches work your partner’s gates, and theirs work yours. Some open, some shut, some
-        do nothing. Arrow keys or WASD to move, Space to flip.
+        do nothing.<span className={styles.keys}> Arrow keys or WASD to move, Space to flip.</span>
       </p>
     </div>
   );

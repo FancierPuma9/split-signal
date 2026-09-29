@@ -181,3 +181,10 @@
   opacity: 0.6;
   text-align: center;
 }
+
+/* Keyboard help means nothing on a touch screen. */
+@media (pointer: coarse) {
+  .keys {
+    display: none;
+  }
+}

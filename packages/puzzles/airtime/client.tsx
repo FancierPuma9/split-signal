@@ -1,5 +1,6 @@
 import type { PuzzleClientProps } from '@split-signal/shared';
 import { useEffect, useRef } from 'react';
+import { useHoldRepeat } from '../lib/useHoldRepeat';
 import styles from './client.module.css';
 import type { Action, Dir, NavigatorView, WalkerView, View } from './types';
 
@@ -191,6 +192,8 @@ function Walker({ view, send }: { view: WalkerView; send: (action: Action) => vo
   }, []);
 
   const move = (dir: Dir) => send({ type: 'move', dir });
+  // Held pads repeat at the same pace as held keys.
+  const hold = useHoldRepeat(REPEAT_MS);
 
   return (
     <div className={styles.root}>
@@ -225,28 +228,28 @@ function Walker({ view, send }: { view: WalkerView; send: (action: Action) => vo
           <button
             className={`${styles.pad} ${styles.up}`}
             aria-label="North"
-            onClick={() => move('n')}
+            {...hold(() => move('n'))}
           >
             ▲
           </button>
           <button
             className={`${styles.pad} ${styles.left}`}
             aria-label="West"
-            onClick={() => move('w')}
+            {...hold(() => move('w'))}
           >
             ◀
           </button>
           <button
             className={`${styles.pad} ${styles.right}`}
             aria-label="East"
-            onClick={() => move('e')}
+            {...hold(() => move('e'))}
           >
             ▶
           </button>
           <button
             className={`${styles.pad} ${styles.down}`}
             aria-label="South"
-            onClick={() => move('s')}
+            {...hold(() => move('s'))}
           >
             ▼
           </button>

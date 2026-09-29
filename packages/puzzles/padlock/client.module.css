@@ -26,6 +26,9 @@
 
 .lock {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
   gap: 12px;
   padding: 18px 20px;
   border-radius: 18px;
@@ -49,6 +52,7 @@
 
 .dial button {
   width: 48px;
+  min-height: 40px;
   padding: 4px 0;
 }
 
@@ -81,7 +85,7 @@
 }
 
 .spacer {
-  height: 31px;
+  height: 40px;
 }
 
 .flash {
@@ -118,4 +122,22 @@
   padding: 4px 10px;
   border-radius: 6px;
   background: rgb(255 255 255 / 5%);
+}
+
+/* Phones: six dials (three-player teams) have to fit about 330px. */
+@media (width < 600px) {
+  .lock {
+    gap: 8px;
+    padding: 14px 12px;
+  }
+
+  .digit {
+    width: clamp(40px, 11vw, 56px);
+    height: 64px;
+    font-size: 2rem;
+  }
+
+  .dial button {
+    width: clamp(40px, 11vw, 48px);
+  }
 }

@@ -31,7 +31,8 @@
 }
 
 .floor svg {
-  width: min(390px, 90vw);
+  width: 100%;
+  max-width: 390px;
   border-radius: 6px;
   border: 1px solid var(--border);
 }
@@ -44,7 +45,7 @@
 }
 
 .roomName {
-  font-size: 6.5px;
+  font-size: 8px;
   fill: #d0d6e2;
   opacity: 0.85;
 }
@@ -177,6 +178,8 @@
 
 .controls {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 24px;
   align-items: center;
 }
@@ -198,7 +201,10 @@
   background: var(--surface-2);
   border-color: var(--border);
   color: var(--text);
-  touch-action: manipulation;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .up {
@@ -220,4 +226,5 @@
 .use {
   min-width: 110px;
   min-height: 56px;
+  touch-action: manipulation;
 }

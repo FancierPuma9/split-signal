@@ -16,6 +16,7 @@ import recipeCipher from './recipe-cipher/server';
 import slidingGrid from './sliding-grid/server';
 import splitHairs from './split-hairs/server';
 import splitKeyboard from './split-keyboard/server';
+import swapStack from './swap-stack/server';
 
 /**
  * The puzzle catalog that matches pick from. To add a puzzle, import its server module and list it
@@ -37,6 +38,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   airtime,
   pickSix,
   badAdvice,
+  swapStack,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

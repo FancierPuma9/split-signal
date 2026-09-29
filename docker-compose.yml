@@ -1,0 +1,55 @@
+# Split Signal on one server: the game, and Caddy in front of it for HTTPS (browsers only allow
+# the microphone on secure pages). See docs/DEPLOY.md. Settings come from .env.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      SPLIT_SIGNAL_GOOGLE_CLIENT_ID: ${SPLIT_SIGNAL_GOOGLE_CLIENT_ID:-}
+      SPLIT_SIGNAL_ICE_SERVERS: ${SPLIT_SIGNAL_ICE_SERVERS:-}
+      SPLIT_SIGNAL_DB: /data/split-signal.db
+    volumes:
+      - app-data:/data
+    expose:
+      - '3001'
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+  # Optional TURN relay, for players whose networks block direct voice connections. Start it with
+  # `docker compose --profile turn up -d` and point SPLIT_SIGNAL_ICE_SERVERS at it.
+  turn:
+    image: coturn/coturn:4
+    profiles: ['turn']
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./deploy/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      # Compose checks variables even for profiles that aren't running, so these can't be marked
+      # required here; set them in .env before starting TURN.
+      - --external-ip=${TURN_EXTERNAL_IP:-}
+      - --realm=${DOMAIN}
+      - --user=${TURN_USER:-splitsignal}:${TURN_PASSWORD:-}
+
+volumes:
+  app-data:
+  caddy-data:
+  caddy-config:

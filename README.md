@@ -6,19 +6,19 @@ twist is always in how players are allowed to communicate.
 
 Inspired by _We Were Here_ (asymmetric information) and _Jackbox_ (room codes, play with friends).
 
-> **Status:** early development, through phase 6 of [the build plan](docs/PLAN.md) plus the
-> second batch of puzzles ([docs/PUZZLES_BATCH2.md](docs/PUZZLES_BATCH2.md)). Rooms, the lobby,
-> the full match loop (rounds, scoring, pause and rejoin, surrender) and every comms channel work:
-> voice, signals, recorded clips, late and jittered clips, rationed mic time, one-way alternating
-> voice, and fading ink. Eighteen puzzles:
+> **Status:** early, but complete: every phase of [the build plan](docs/PLAN.md) plus the second
+> batch of puzzles ([docs/PUZZLES_BATCH2.md](docs/PUZZLES_BATCH2.md)). Rooms, the lobby, the full
+> match loop (rounds, scoring, pause and rejoin, surrender), optional Google sign-in with stats,
+> and every comms channel work: voice, signals, recorded clips, late and jittered clips, rationed
+> mic time, one-way alternating voice, and fading ink. Eighteen puzzles:
 >
 > - **Batch 1:** Sliding Grid, Padlock, Color Mix, Melody Sort, Split Keyboard, Elevators, Recipe
 >   Cipher, Radio Tune.
 > - **Batch 2:** Ghost Ink, Split Hairs, Echo Claw, Color Sweep, Airtime, Walkie, Swap Stack, and
 >   three arena puzzles where the whole room shares one game: Pick Six, Bad Advice and Going Once.
 >
-> Each puzzle's folder has a README with its rules. Accounts and stats (phase 7) and the
-> open-source release (phase 8) are next.
+> Each puzzle's folder has a README with its rules. It still needs playtesting with real groups:
+> expect the tuning to change.
 
 Voice is WebRTC between browsers; the server only relays signaling and decides who can hear whom.
 Players on different networks may need a TURN server: set `SPLIT_SIGNAL_ICE_SERVERS` to a JSON array
@@ -76,9 +76,21 @@ packages/
   server/    HTTP + WebSocket server, rooms and lobby, match engine, puzzle runtime
   client/    React shell (home, lobby, match), lazy-loading puzzle host
   puzzles/   the puzzle catalog, the test harness, and one folder per puzzle
-docs/        build plan and puzzle authoring guide
+deploy/      Caddy and TURN config for self-hosting
+docs/        build plan, puzzle authoring guide, deployment guide
 ```
+
+## Hosting it yourself
+
+`docker compose up -d` runs the game behind Caddy with automatic HTTPS (browsers only allow the
+microphone on secure pages). [docs/DEPLOY.md](docs/DEPLOY.md) walks through a server from scratch,
+on AWS EC2 or anywhere else with Docker.
 
 ## Writing a puzzle
 
 Copy `packages/puzzles/_template` and follow [docs/PUZZLE_AUTHORING.md](docs/PUZZLE_AUTHORING.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) covers setup and pull requests.
+
+## License
+
+[MIT](LICENSE).

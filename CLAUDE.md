@@ -1,14 +1,13 @@
 # Split Signal
 
-Browser party game; the spec is [docs/PLAN.md](docs/PLAN.md). Work through it phase by phase and keep
-each phase runnable. Phases 0-6 are done (scaffolding, rooms/lobby, match engine, signals + Sliding
-Grid, WebRTC voice + Padlock + Color Mix, Melody Sort + Split Keyboard + Elevators, Recipe Cipher +
-clips + Radio Tune). Phase 7 (Google sign-in, stats) needs OAuth credentials from the owner; phase 8
-(release) needs a license and hosting decision. The plan calls for playtests after phases 3 and 5.
+Browser party game; the spec is [docs/PLAN.md](docs/PLAN.md). Every phase (0-8) is built, plus
+puzzle batch 2 ([docs/PUZZLES_BATCH2.md](docs/PUZZLES_BATCH2.md): new comms rules, arena mode, ten
+more puzzles). MIT licensed; self-hosted with Docker + Caddy ([docs/DEPLOY.md](docs/DEPLOY.md)). The
+plans call for playtests (after phases 3 and 5, and batch 2's B2, B5, B8) that haven't happened yet.
 
-Puzzle batch 2 ([docs/PUZZLES_BATCH2.md](docs/PUZZLES_BATCH2.md), B0-B9) is built on the `batch-2`
-branch: new comms rules, arena (shared-instance) mode, and ten puzzles. It asks for playtests after
-B2, B5 and B8.
+Accounts (phase 7) are optional and off unless `SPLIT_SIGNAL_GOOGLE_CLIENT_ID` is set: the server
+verifies Google ID tokens itself (server/src/auth/google.ts), keeps sessions and stats in SQLite via
+`node:sqlite` (server/src/stats/), and never requires sign-in to play.
 
 Clips: `onClip` (optional contract hook) routes each clip and computes per-recipient params on the
 server; the engine enforces length/cooldown and handles the 'repeat' signal. Delayed, jittered and

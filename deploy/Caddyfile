@@ -1,0 +1,10 @@
+# Caddy gets and renews the HTTPS certificate for DOMAIN automatically (Let's Encrypt), and
+# proxies everything, WebSockets included, to the game server.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3001
+}

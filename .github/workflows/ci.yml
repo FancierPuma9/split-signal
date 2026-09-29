@@ -25,3 +25,15 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t split-signal .
+      - name: Start the image and check it serves the client
+        run: |
+          docker run -d --name split-signal -p 3001:3001 split-signal
+          for i in $(seq 1 30); do curl -fs localhost:3001/healthz && break; sleep 1; done
+          curl -fs localhost:3001/ | grep -q '<title>Split Signal</title>'
+          docker logs split-signal

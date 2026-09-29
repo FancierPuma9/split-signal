@@ -1,0 +1,199 @@
+{
+  "clusters": [
+    {
+      "id": "sadness",
+      "words": ["sad", "gloomy", "homesick", "heartbroken", "lonely", "disappointed", "defeated"],
+      "pictures": {
+        "sad": ["sad-01.svg"],
+        "gloomy": ["gloomy-01.svg"],
+        "homesick": ["homesick-01.svg"],
+        "heartbroken": ["heartbroken-01.svg"],
+        "lonely": ["lonely-01.svg"],
+        "disappointed": ["disappointed-01.svg"],
+        "defeated": ["defeated-01.svg"]
+      }
+    },
+    {
+      "id": "ways-to-walk",
+      "words": ["walk", "stroll", "march", "tiptoe", "stagger", "limp", "strut", "sneak"],
+      "pictures": {
+        "walk": ["walk-01.svg"],
+        "stroll": ["stroll-01.svg"],
+        "march": ["march-01.svg"],
+        "tiptoe": ["tiptoe-01.svg"],
+        "stagger": ["stagger-01.svg"],
+        "limp": ["limp-01.svg"],
+        "strut": ["strut-01.svg"],
+        "sneak": ["sneak-01.svg"]
+      }
+    },
+    {
+      "id": "happiness",
+      "words": ["happy", "proud", "relieved", "excited", "smug", "giddy", "content"],
+      "pictures": {
+        "happy": ["happy-01.svg"],
+        "proud": ["proud-01.svg"],
+        "relieved": ["relieved-01.svg"],
+        "excited": ["excited-01.svg"],
+        "smug": ["smug-01.svg"],
+        "giddy": ["giddy-01.svg"],
+        "content": ["content-01.svg"]
+      }
+    },
+    {
+      "id": "fear",
+      "words": ["scared", "nervous", "startled", "terrified", "suspicious", "panicked", "worried"],
+      "pictures": {
+        "scared": ["scared-01.svg"],
+        "nervous": ["nervous-01.svg"],
+        "startled": ["startled-01.svg"],
+        "terrified": ["terrified-01.svg"],
+        "suspicious": ["suspicious-01.svg"],
+        "panicked": ["panicked-01.svg"],
+        "worried": ["worried-01.svg"]
+      }
+    },
+    {
+      "id": "anger",
+      "words": ["angry", "annoyed", "furious", "grumpy", "jealous", "frustrated", "impatient"],
+      "pictures": {
+        "angry": ["angry-01.svg"],
+        "annoyed": ["annoyed-01.svg"],
+        "furious": ["furious-01.svg"],
+        "grumpy": ["grumpy-01.svg"],
+        "jealous": ["jealous-01.svg"],
+        "frustrated": ["frustrated-01.svg"],
+        "impatient": ["impatient-01.svg"]
+      }
+    },
+    {
+      "id": "tiredness",
+      "words": ["tired", "sleepy", "exhausted", "lazy", "bored", "groggy"],
+      "pictures": {
+        "tired": ["tired-01.svg"],
+        "sleepy": ["sleepy-01.svg"],
+        "exhausted": ["exhausted-01.svg"],
+        "lazy": ["lazy-01.svg"],
+        "bored": ["bored-01.svg"],
+        "groggy": ["groggy-01.svg"]
+      }
+    },
+    {
+      "id": "ways-to-eat",
+      "words": ["nibble", "gobble", "sip", "chew", "slurp", "feast", "lick"],
+      "pictures": {
+        "nibble": ["nibble-01.svg"],
+        "gobble": ["gobble-01.svg"],
+        "sip": ["sip-01.svg"],
+        "chew": ["chew-01.svg"],
+        "slurp": ["slurp-01.svg"],
+        "feast": ["feast-01.svg"],
+        "lick": ["lick-01.svg"]
+      }
+    },
+    {
+      "id": "ways-to-look",
+      "words": ["stare", "glance", "peek", "squint", "glare", "gaze", "spy"],
+      "pictures": {
+        "stare": ["stare-01.svg"],
+        "glance": ["glance-01.svg"],
+        "peek": ["peek-01.svg"],
+        "squint": ["squint-01.svg"],
+        "glare": ["glare-01.svg"],
+        "gaze": ["gaze-01.svg"],
+        "spy": ["spy-01.svg"]
+      }
+    },
+    {
+      "id": "ways-to-talk",
+      "words": ["whisper", "shout", "mumble", "sing", "gossip", "argue", "lecture"],
+      "pictures": {
+        "whisper": ["whisper-01.svg"],
+        "shout": ["shout-01.svg"],
+        "mumble": ["mumble-01.svg"],
+        "sing": ["sing-01.svg"],
+        "gossip": ["gossip-01.svg"],
+        "argue": ["argue-01.svg"],
+        "lecture": ["lecture-01.svg"]
+      }
+    },
+    {
+      "id": "bad-weather",
+      "words": ["drizzle", "downpour", "thunderstorm", "hail", "fog", "gale", "blizzard"],
+      "pictures": {
+        "drizzle": ["drizzle-01.svg"],
+        "downpour": ["downpour-01.svg"],
+        "thunderstorm": ["thunderstorm-01.svg"],
+        "hail": ["hail-01.svg"],
+        "fog": ["fog-01.svg"],
+        "gale": ["gale-01.svg"],
+        "blizzard": ["blizzard-01.svg"]
+      }
+    },
+    {
+      "id": "laughing",
+      "words": ["laugh", "giggle", "chuckle", "smirk", "grin", "cackle", "snicker"],
+      "pictures": {
+        "laugh": ["laugh-01.svg"],
+        "giggle": ["giggle-01.svg"],
+        "chuckle": ["chuckle-01.svg"],
+        "smirk": ["smirk-01.svg"],
+        "grin": ["grin-01.svg"],
+        "cackle": ["cackle-01.svg"],
+        "snicker": ["snicker-01.svg"]
+      }
+    },
+    {
+      "id": "falling-down",
+      "words": ["fall", "trip", "slip", "tumble", "dive", "sink", "collapse"],
+      "pictures": {
+        "fall": ["fall-01.svg"],
+        "trip": ["trip-01.svg"],
+        "slip": ["slip-01.svg"],
+        "tumble": ["tumble-01.svg"],
+        "dive": ["dive-01.svg"],
+        "sink": ["sink-01.svg"],
+        "collapse": ["collapse-01.svg"]
+      }
+    },
+    {
+      "id": "breaking",
+      "words": ["crack", "shatter", "snap", "crumble", "tear", "dent", "burst"],
+      "pictures": {
+        "crack": ["crack-01.svg"],
+        "shatter": ["shatter-01.svg"],
+        "snap": ["snap-01.svg"],
+        "crumble": ["crumble-01.svg"],
+        "tear": ["tear-01.svg"],
+        "dent": ["dent-01.svg"],
+        "burst": ["burst-01.svg"]
+      }
+    },
+    {
+      "id": "places-to-live",
+      "words": ["cabin", "castle", "tent", "igloo", "skyscraper", "hut", "mansion"],
+      "pictures": {
+        "cabin": ["cabin-01.svg"],
+        "castle": ["castle-01.svg"],
+        "tent": ["tent-01.svg"],
+        "igloo": ["igloo-01.svg"],
+        "skyscraper": ["skyscraper-01.svg"],
+        "hut": ["hut-01.svg"],
+        "mansion": ["mansion-01.svg"]
+      }
+    },
+    {
+      "id": "touching",
+      "words": ["tap", "poke", "pat", "slap", "punch", "tickle", "nudge"],
+      "pictures": {
+        "tap": ["tap-01.svg"],
+        "poke": ["poke-01.svg"],
+        "pat": ["pat-01.svg"],
+        "slap": ["slap-01.svg"],
+        "punch": ["punch-01.svg"],
+        "tickle": ["tickle-01.svg"],
+        "nudge": ["nudge-01.svg"]
+      }
+    }
+  ]
+}

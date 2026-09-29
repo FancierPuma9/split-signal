@@ -1,0 +1,145 @@
+.root {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  width: min(820px, 100%);
+}
+
+.hint {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.stage {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  max-width: 560px;
+}
+
+.drawerLayout {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  gap: 14px;
+  width: 100%;
+  align-items: start;
+}
+
+@media (width < 720px) {
+  .drawerLayout {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+}
+
+.pictureCard {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: #fff;
+  color: #3a3d45;
+  text-align: center;
+  font-size: 0.85rem;
+  width: 100%;
+  max-width: 280px;
+}
+
+.pictureCard img {
+  width: 100%;
+  aspect-ratio: 5 / 4;
+}
+
+.wrongFlash {
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 25%, transparent);
+  color: #ffb3b5;
+  font-weight: 600;
+  animation: flash 0.6s ease-out;
+}
+
+@keyframes flash {
+  from {
+    background: var(--danger);
+    transform: scale(1.08);
+  }
+}
+
+.lockout {
+  margin: 0;
+  font-weight: 700;
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+}
+
+.words {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  width: min(560px, 100%);
+}
+
+.word,
+.tried {
+  padding: 10px 12px;
+  font-size: 1rem;
+}
+
+.word {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.word:not(:disabled):hover {
+  border-color: var(--accent);
+}
+
+.tried {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+button.tried {
+  background: transparent;
+  border-color: var(--border);
+}
+
+.answer {
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+.answer strong {
+  color: var(--accent);
+}
+
+.revealLayout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.revealWords {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.target {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.revealWords .tried {
+  padding: 0;
+  font-size: inherit;
+}

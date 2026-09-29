@@ -1,4 +1,4 @@
-import type { MatchView, RoomView, ServerMessage } from '@split-signal/shared';
+import type { CommsState, MatchView, RoomView, ServerMessage } from '@split-signal/shared';
 import type { ConnectionStatus } from '../net/socket';
 
 export interface Notice {
@@ -25,11 +25,14 @@ export interface GameState {
     params: unknown;
     at: number;
   }>;
+  /** Engine-managed comms state for this round (who is live, budgets, clips in flight). */
+  comms: CommsState & { receivedAt: number };
   notice: Notice | null;
 }
 
 const MAX_SIGNALS = 20;
 const MAX_CLIPS = 8;
+const NO_COMMS = { receivedAt: 0 };
 
 export const initialGameState: GameState = {
   connection: 'closed',
@@ -39,6 +42,7 @@ export const initialGameState: GameState = {
   puzzleView: null,
   signals: [],
   clips: [],
+  comms: NO_COMMS,
   notice: null,
 };
 
@@ -94,8 +98,11 @@ function onServerMessage(state: GameState, message: ServerMessage, at: number): 
         puzzleView: sameRound ? state.puzzleView : null,
         signals: stillPlaying ? state.signals : [],
         clips: stillPlaying ? state.clips : [],
+        comms: stillPlaying ? state.comms : NO_COMMS,
       };
     }
+    case 'comms.state':
+      return { ...state, comms: { ...message.state, receivedAt: at } };
     case 'comms.clip': {
       const { id, from, mime, data, params } = message;
       return {
@@ -117,10 +124,11 @@ function onServerMessage(state: GameState, message: ServerMessage, at: number): 
         : state;
     case 'match.reject':
       return { ...state, notice: { id: at, text: message.reason } };
-    // Voice messages go straight to the VoiceManager.
+    // Voice messages go straight to the VoiceManager, draw batches to their subscribers.
     case 'comms.config':
     case 'comms.peers':
     case 'comms.rtc':
+    case 'comms.draw':
       return state;
     case 'error':
       return { ...state, notice: { id: at, text: message.message } };

@@ -37,6 +37,7 @@ export function App() {
             puzzleView={state.puzzleView}
             signals={state.signals}
             clips={state.clips}
+            comms={state.comms}
             recording={recording}
             meId={session.playerId}
             isHost={room.hostId === session.playerId}

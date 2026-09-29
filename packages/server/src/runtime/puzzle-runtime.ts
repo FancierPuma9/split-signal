@@ -4,6 +4,7 @@ import {
   type ClipRouting,
   type PlayerInfo,
   type PuzzleScore,
+  type SessionOptions,
 } from '@split-signal/shared';
 
 export interface RuntimeHooks {
@@ -12,18 +13,16 @@ export interface RuntimeHooks {
   /** Called once, the first time the puzzle becomes solved. */
   onSolved(): void;
   onError(error: unknown, context: string): void;
+  /** Called after any state change (before onSolved). */
+  onChange?(): void;
 }
 
-export interface RuntimeOptions {
-  seed: string;
-  teamId: string;
-  players: readonly PlayerInfo[];
-  clock: () => number;
-}
+export type RuntimeOptions = SessionOptions;
 
 /**
- * One team's puzzle instance on the server. Routes actions to the module, recomputes every
- * player's view after each change, and sends only the views that actually changed.
+ * One puzzle instance on the server (a team's, or the room's for shared puzzles). Routes actions
+ * to the module, recomputes every player's view after each change, and sends only the views that
+ * actually changed.
  */
 export class PuzzleRuntime {
   private readonly session: PuzzleSession;
@@ -63,9 +62,9 @@ export class PuzzleRuntime {
     if (outcome.changed) this.afterChange();
   }
 
-  handleSignal(playerId: string, signal: string): void {
+  handleSignal(playerId: string, signal: string, to?: string): void {
     this.guard('onSignal', () => {
-      if (this.session.signal(playerId, signal)) this.afterChange();
+      if (this.session.signal(playerId, signal, to)) this.afterChange();
     });
   }
 
@@ -75,14 +74,29 @@ export class PuzzleRuntime {
     });
   }
 
-  /** Where a clip from this player goes, according to the puzzle. */
-  routeClip(playerId: string): ClipRouting {
+  /** Where a clip from this player goes, according to the puzzle (null: use the default). */
+  routeClip(playerId: string): ClipRouting | null {
     try {
       return this.session.routeClip(playerId);
     } catch (error) {
       this.hooks.onError(error, 'onClip');
       return { reject: 'Could not send that clip' };
     }
+  }
+
+  /** The current view for one player, without sending it. */
+  viewFor(playerId: string): unknown {
+    try {
+      return this.session.view(playerId);
+    } catch (error) {
+      this.hooks.onError(error, 'view');
+      return null;
+    }
+  }
+
+  /** Recomputes everyone's view, e.g. after comms state (like who is live) changed. */
+  refresh(): void {
+    this.publish();
   }
 
   /** Re-sends the current view to one player, e.g. after they reconnect. */
@@ -93,6 +107,7 @@ export class PuzzleRuntime {
 
   private afterChange(): void {
     this.publish();
+    this.hooks.onChange?.();
     if (this.session.solved && !this.solvedReported) {
       this.solvedReported = true;
       this.hooks.onSolved();

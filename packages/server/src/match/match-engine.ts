@@ -1,8 +1,9 @@
 import {
-  CLIP_COOLDOWN_MS,
   DEFAULT_SIGNAL_COOLDOWN_MS,
   allowedSignals,
+  isClipRule,
   type AnyPuzzleServerModule,
+  type DrawBatch,
   type MatchPhase,
   type MatchView,
   type PlayerInfo,
@@ -10,7 +11,9 @@ import {
   type ServerMessage,
   type Standing,
   type TeamRoundResult,
+  type TeamScore,
 } from '@split-signal/shared';
+import { CommsController } from '../comms/controller';
 import { PuzzleRuntime } from '../runtime/puzzle-runtime';
 import { PausableClock } from './clock';
 import { resolveRound } from './resolution';
@@ -51,7 +54,7 @@ export interface MatchOptions {
 export interface MatchIO {
   send(playerId: string, message: ServerMessage): void;
   onError?(error: unknown, context: string): void;
-  /** Called after every match state change (phase, solves, pause), e.g. to update voice. */
+  /** Called after every match state change (phase, solves, pause, voice swaps). */
   onStateChange?(): void;
 }
 
@@ -76,9 +79,27 @@ export interface MatchState {
   endedBy: 'completed' | 'surrender' | null;
 }
 
+/** Instance key for shared (arena) puzzles. */
+const SHARED = 'shared';
+
+function teamResult(
+  teamId: string,
+  solved: boolean,
+  score: TeamScore | undefined,
+): TeamRoundResult {
+  return {
+    teamId,
+    solved,
+    ...(score?.moves !== undefined ? { moves: score.moves } : {}),
+    ...(score?.elapsedMs !== undefined ? { elapsedMs: score.elapsedMs } : {}),
+    ...(score?.points !== undefined ? { points: score.points } : {}),
+  };
+}
+
 /**
  * Runs one match: for each round, intro → countdown → playing → scoreboard, then final results.
  * Timers run on a pausable clock, so a disconnect freezes everything until the player returns.
+ * Per-team puzzles get one instance per team; shared puzzles get one for the whole room.
  */
 export class MatchEngine {
   readonly state: MatchState;
@@ -90,11 +111,8 @@ export class MatchEngine {
   private readonly io: MatchIO;
   private readonly teamByPlayer = new Map<string, MatchTeam>();
   private readonly lastSignalAt = new Map<string, number>();
-  private readonly lastClipAt = new Map<string, number>();
-  /** Each team's latest clip this round, for 'repeat'. */
-  private readonly lastClip = new Map<string, { from: string; mime: string; data: string }>();
-  private clipCounter = 0;
-  private runtimes = new Map<string, PuzzleRuntime>();
+  private instances = new Map<string, PuzzleRuntime>();
+  private comms: CommsController | null = null;
 
   constructor(options: MatchOptions, io: MatchIO) {
     if (options.puzzles.length === 0) throw new Error('A match needs at least one puzzle');
@@ -142,6 +160,11 @@ export class MatchEngine {
     return this.teams.map((t) => ({ id: t.id, playerIds: t.players.map((p) => p.id) }));
   }
 
+  /** Voice state for the topology: timed voice open or closed, who is live under alternation. */
+  voiceState(): { open: boolean; activeByTeam: Record<string, string> } {
+    return this.comms?.voice() ?? { open: true, activeByTeam: {} };
+  }
+
   hasPlayer(playerId: string): boolean {
     return this.teamByPlayer.has(playerId);
   }
@@ -156,8 +179,9 @@ export class MatchEngine {
     if (this.paused || s.phase === 'finished') return;
 
     if (s.phase === 'playing') {
-      for (const [teamId, runtime] of this.runtimes) {
-        if (!s.roundResults[teamId]?.solved) runtime.tick();
+      this.comms?.tick();
+      for (const [key, runtime] of this.instances) {
+        if (key === SHARED || !s.roundResults[key]?.solved) runtime.tick();
         if (s.phase !== 'playing') return;
       }
       if (s.firstSolveAt !== null && this.clock.now() >= s.firstSolveAt + this.graceMs()) {
@@ -177,20 +201,28 @@ export class MatchEngine {
     if (!team) return reject('You are not in this match');
     if (this.paused) return reject('The match is paused');
     if (this.state.phase !== 'playing') return reject('The round is not running');
-    if (this.state.roundResults[team.id]?.solved) return reject('Your team already solved it');
-    this.runtimes.get(team.id)?.handleAction(playerId, payload);
+    if (!this.isShared() && this.state.roundResults[team.id]?.solved) {
+      return reject('Your team already solved it');
+    }
+    this.runtimeFor(team.id)?.handleAction(playerId, payload);
   }
 
   /**
-   * Relays a discrete signal to the sender's team, if the current puzzle allows it and the sender
-   * is off cooldown. Anything else is dropped silently.
+   * A discrete signal: relayed to the sender's team (or just to `to`), if the puzzle allows it and
+   * the sender is off cooldown, then passed to the puzzle's onSignal. Anything else is dropped.
    */
-  handleSignal(playerId: string, signal: string): void {
+  handleSignal(playerId: string, signal: string, to?: string): void {
     const team = this.teamByPlayer.get(playerId);
-    const runtime = team && this.runtimes.get(team.id);
+    const runtime = team && this.runtimeFor(team.id);
     if (!team || !runtime || this.paused || this.state.phase !== 'playing') return;
     const { comms } = this.currentPuzzle().manifest;
     if (!allowedSignals(comms).includes(signal)) return;
+    if (to !== undefined) {
+      const reachable = this.isShared()
+        ? this.teamByPlayer.has(to)
+        : team.players.some((p) => p.id === to);
+      if (!reachable || to === playerId) return;
+    }
 
     const now = this.clock.now();
     const cooldown =
@@ -199,70 +231,32 @@ export class MatchEngine {
     if (last !== undefined && now - last < cooldown) return;
     this.lastSignalAt.set(playerId, now);
 
-    for (const member of team.players) {
-      this.io.send(member.id, { type: 'comms.signal', from: playerId, signal });
+    const relay = !(comms.type === 'signals' && comms.relay === false);
+    if (relay) {
+      const recipients = to !== undefined ? [to, playerId] : team.players.map((p) => p.id);
+      for (const id of recipients)
+        this.io.send(id, { type: 'comms.signal', from: playerId, signal });
     }
-    runtime.handleSignal(playerId, signal);
+    runtime.handleSignal(playerId, signal, to);
 
-    // Under a clips rule, 'repeat' re-delivers the team's latest clip to whoever asked, with
-    // parameters worked out from the state as it is now.
-    if (comms.type === 'clips' && signal === 'repeat') {
-      const clip = this.lastClip.get(team.id);
-      if (clip) this.deliverClip(team.id, runtime, clip, playerId);
-    }
+    // Under a clip rule, 'repeat' re-delivers the latest clip to whoever asked, with parameters
+    // worked out from the state as it is now.
+    if (isClipRule(comms) && signal === 'repeat') this.comms?.repeat(playerId);
   }
 
-  /** A recorded clip, for puzzles with a clips comms rule. */
+  /** A recorded clip, for puzzles with a clip comms rule. */
   handleClip(playerId: string, clip: { mime: string; data: string; durationMs: number }): void {
-    const team = this.teamByPlayer.get(playerId);
-    const runtime = team && this.runtimes.get(team.id);
     const reject = (reason: string) => this.io.send(playerId, { type: 'match.reject', reason });
-    if (!team || !runtime) return reject('No round in progress');
-    if (this.paused || this.state.phase !== 'playing') return reject('The round is not running');
-    const { comms } = this.currentPuzzle().manifest;
-    if (comms.type !== 'clips') return reject("This puzzle doesn't use clips");
-    if (clip.durationMs > comms.maxSeconds * 1000 + 500) {
-      return reject(`Clips can be at most ${comms.maxSeconds} seconds`);
-    }
-    const now = this.clock.now();
-    const last = this.lastClipAt.get(playerId);
-    if (last !== undefined && now - last < CLIP_COOLDOWN_MS) return reject('Wait a moment first');
-
-    const stored = { from: playerId, mime: clip.mime, data: clip.data };
-    const delivered = this.deliverClip(team.id, runtime, stored);
-    if (delivered) {
-      this.lastClipAt.set(playerId, now);
-      this.lastClip.set(team.id, stored);
-    }
+    if (!this.comms || this.state.phase !== 'playing') return reject('The round is not running');
+    if (this.paused) return reject('The match is paused');
+    const problem = this.comms.handleClip(playerId, clip);
+    if (problem) reject(problem);
   }
 
-  /** Routes a clip through the puzzle and sends it; returns false if the puzzle refused it. */
-  private deliverClip(
-    teamId: string,
-    runtime: PuzzleRuntime,
-    clip: { from: string; mime: string; data: string },
-    onlyTo?: string,
-  ): boolean {
-    const routing = runtime.routeClip(clip.from);
-    if ('reject' in routing) {
-      if (!onlyTo) this.io.send(clip.from, { type: 'match.reject', reason: routing.reject });
-      return false;
-    }
-    const team = this.teams.find((t) => t.id === teamId);
-    for (const { to, params } of routing.deliveries) {
-      if (onlyTo !== undefined && to !== onlyTo) continue;
-      if (!team?.players.some((p) => p.id === to)) continue;
-      this.clipCounter += 1;
-      this.io.send(to, {
-        type: 'comms.clip',
-        id: this.clipCounter,
-        from: clip.from,
-        mime: clip.mime,
-        data: clip.data,
-        params,
-      });
-    }
-    return true;
+  /** Pen samples, for puzzles with the draw rule. */
+  handleDraw(playerId: string, batch: DrawBatch): void {
+    if (!this.comms || this.paused || this.state.phase !== 'playing') return;
+    this.comms.handleDraw(playerId, batch);
   }
 
   playerDisconnected(playerId: string): void {
@@ -278,7 +272,8 @@ export class MatchEngine {
     this.state.waitingFor = this.state.waitingFor.filter((id) => id !== playerId);
     if (!this.paused) this.clock.resume();
     this.broadcast();
-    this.runtimes.get(team.id)?.resendView(playerId);
+    this.runtimeFor(team.id)?.resendView(playerId);
+    this.comms?.resend(playerId);
   }
 
   /** Ends the whole match as it stands. Only allowed while waiting on a disconnected player. */
@@ -315,6 +310,14 @@ export class MatchEngine {
       standings: s.standings,
       endedBy: s.endedBy,
     };
+  }
+
+  private isShared(): boolean {
+    return this.currentPuzzle().manifest.instance === 'shared';
+  }
+
+  private runtimeFor(teamId: string): PuzzleRuntime | undefined {
+    return this.instances.get(this.isShared() ? SHARED : teamId);
   }
 
   private currentPuzzle(): AnyPuzzleServerModule {
@@ -358,7 +361,6 @@ export class MatchEngine {
     const s = this.state;
     s.round = round;
     s.firstSolveAt = null;
-    this.lastClip.clear();
     s.roundResults = Object.fromEntries(
       this.teams.map((t) => [t.id, { teamId: t.id, solved: false }]),
     );
@@ -368,48 +370,113 @@ export class MatchEngine {
 
   private enterPlaying(): void {
     const puzzle = this.currentPuzzle();
-    this.enterPhase('playing', puzzle.manifest.timeLimitSeconds * 1000);
+    const { manifest } = puzzle;
+    this.enterPhase('playing', manifest.timeLimitSeconds * 1000);
     const roundStart = this.state.phaseStartedAt;
     const roundSeed = `${this.state.seed}:round-${this.state.round}`;
+    const clock = () => this.clock.now() - roundStart;
+    const shared = manifest.instance === 'shared';
 
-    this.runtimes = new Map(
-      this.teams.map((team) => [
-        team.id,
-        new PuzzleRuntime(
-          puzzle,
-          {
-            seed: roundSeed,
-            teamId: team.id,
-            players: team.players,
-            clock: () => this.clock.now() - roundStart,
-          },
-          {
-            sendView: (playerId, view) => this.io.send(playerId, { type: 'match.view', view }),
-            sendReject: (playerId, reason) =>
-              this.io.send(playerId, { type: 'match.reject', reason }),
-            onSolved: () => this.onTeamSolved(team.id),
-            onError: (error, context) =>
-              this.io.onError?.(error, `${puzzle.manifest.id} ${context}`),
-          },
+    const comms = new CommsController({
+      rule: manifest.comms,
+      seed: roundSeed,
+      puzzleId: manifest.id,
+      teams: this.teams,
+      now: () => this.clock.now(),
+      send: (playerId, message) => this.io.send(playerId, message),
+      routeClip: (teamId, from) => this.runtimeFor(teamId)?.routeClip(from) ?? null,
+      canDraw: (teamId, playerId) => {
+        const view = this.runtimeFor(teamId)?.viewFor(playerId);
+        return (
+          typeof view === 'object' &&
+          view !== null &&
+          (view as { canDraw?: unknown }).canDraw === true
+        );
+      },
+      onChange: () => {
+        for (const runtime of this.instances.values()) runtime.refresh();
+        this.io.onStateChange?.();
+      },
+    });
+    this.comms = comms;
+
+    const hooks = (onSolved: () => void, onChange?: () => void) => ({
+      sendView: (playerId: string, view: unknown) =>
+        this.io.send(playerId, { type: 'match.view', view }),
+      sendReject: (playerId: string, reason: string) =>
+        this.io.send(playerId, { type: 'match.reject', reason }),
+      onSolved,
+      ...(onChange ? { onChange } : {}),
+      onError: (error: unknown, context: string) =>
+        this.io.onError?.(error, `${manifest.id} ${context}`),
+    });
+
+    if (shared) {
+      const runtime = new PuzzleRuntime(
+        puzzle,
+        {
+          seed: roundSeed,
+          teamId: SHARED,
+          players: this.teams.flatMap((t) => t.players),
+          teams: this.rosters,
+          roundIndex: this.state.round,
+          clock,
+          comms: () => ({}),
+        },
+        hooks(
+          () => this.endRound(),
+          () => this.refreshSharedResults(),
         ),
-      ]),
-    );
+      );
+      this.instances = new Map([[SHARED, runtime]]);
+    } else {
+      this.instances = new Map(
+        this.teams.map((team) => [
+          team.id,
+          new PuzzleRuntime(
+            puzzle,
+            {
+              seed: roundSeed,
+              teamId: team.id,
+              players: team.players,
+              roundIndex: this.state.round,
+              clock,
+              comms: () => comms.contextFor(team.id),
+            },
+            hooks(() => this.onTeamSolved(team.id)),
+          ),
+        ]),
+      );
+    }
 
     this.broadcast();
-    for (const runtime of this.runtimes.values()) runtime.start();
+    comms.begin();
+    for (const runtime of this.instances.values()) runtime.start();
+  }
+
+  /** Shared instances: keep each team's live result (for the HUD) in step with the puzzle. */
+  private refreshSharedResults(): void {
+    const s = this.state;
+    const teams = this.instances.get(SHARED)?.score().teams ?? {};
+    const next = Object.fromEntries(
+      this.teams.map((t) => [t.id, teamResult(t.id, teams[t.id]?.solved ?? false, teams[t.id])]),
+    );
+    if (JSON.stringify(next) === JSON.stringify(s.roundResults)) return;
+    s.roundResults = next;
+    if (s.phase === 'playing') this.broadcast();
   }
 
   private onTeamSolved(teamId: string): void {
     const s = this.state;
-    const runtime = this.runtimes.get(teamId);
+    const runtime = this.instances.get(teamId);
     if (s.phase !== 'playing' || !runtime) return;
     const now = this.clock.now();
-    s.roundResults[teamId] = {
-      teamId,
-      solved: true,
-      elapsedMs: now - s.phaseStartedAt,
-      ...(runtime.score().moves !== undefined ? { moves: runtime.score().moves } : {}),
-    };
+    const score = runtime.score();
+    // A module may report its own elapsed time (e.g. with penalties); otherwise use the clock.
+    s.roundResults[teamId] = teamResult(teamId, true, {
+      ...score,
+      elapsedMs: score.elapsedMs ?? now - s.phaseStartedAt,
+    });
 
     const everyoneDone = this.teams.every((t) => s.roundResults[t.id]?.solved);
     if (this.currentPuzzle().manifest.winCondition === 'race' && s.firstSolveAt === null) {
@@ -420,10 +487,26 @@ export class MatchEngine {
     this.broadcast();
   }
 
+  private finalResults(): TeamRoundResult[] {
+    const s = this.state;
+    if (this.isShared()) {
+      const teams = this.instances.get(SHARED)?.score().teams ?? {};
+      return this.teams.map((t) => teamResult(t.id, teams[t.id]?.solved ?? false, teams[t.id]));
+    }
+    return this.teams.map((t) => {
+      const recorded = s.roundResults[t.id];
+      if (recorded?.solved) return recorded;
+      // Unsolved teams still count on points (e.g. placements scored at the buzzer).
+      const points = this.instances.get(t.id)?.score().points;
+      return teamResult(t.id, false, points !== undefined ? { points } : undefined);
+    });
+  }
+
   private endRound(): void {
     const s = this.state;
+    if (s.phase !== 'playing') return;
     const puzzle = this.currentPuzzle();
-    const results = this.teams.map((t) => s.roundResults[t.id] ?? { teamId: t.id, solved: false });
+    const results = this.finalResults();
     const resolution = resolveRound(puzzle.manifest.winCondition, results);
     const summary = {
       round: s.round,
@@ -438,13 +521,16 @@ export class MatchEngine {
       s.scores[teamId] = (s.scores[teamId] ?? 0) + delta;
     }
     s.history.push({ ...summary, points });
-    this.runtimes = new Map();
+    s.roundResults = Object.fromEntries(results.map((r) => [r.teamId, r]));
+    this.instances = new Map();
+    this.comms = null;
     this.enterPhase('scoreboard', this.timings.scoreboardMs);
     this.broadcast();
   }
 
   private finish(endedBy: 'completed' | 'surrender'): void {
-    this.runtimes = new Map();
+    this.instances = new Map();
+    this.comms = null;
     this.state.endedBy = endedBy;
     this.state.standings = this.scoring.finalStandings(this.state.scores);
     this.state.waitingFor = [];

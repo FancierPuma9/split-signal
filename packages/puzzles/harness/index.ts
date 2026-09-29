@@ -15,9 +15,13 @@ import {
   createRng,
   validateManifest,
   type ActionOutcome,
+  type ClipRouting,
+  type CommsState,
+  type Context,
   type PlayerInfo,
   type PuzzleScore,
   type PuzzleServerModule,
+  type TeamRoster,
 } from '@split-signal/shared';
 
 /**
@@ -34,16 +38,22 @@ export interface HiddenInfo<State> {
 }
 
 export interface StartOptions<State> {
-  /** Team size. */
-  players: number;
+  /** Team size, for per-team puzzles. */
+  players?: number;
+  /** Team sizes, for shared-instance puzzles (e.g. [2, 2]). Players are numbered team by team. */
+  teams?: number[];
   /** Defaults to 'test-seed'. */
   seed?: string;
   hidden?: HiddenInfo<State>[];
+  roundIndex?: number;
+  /** Starting engine comms state (e.g. activePlayerId); change it later with setComms(). */
+  comms?: CommsState;
 }
 
 export type ScriptStep<Action> =
   | { seat: number; action: Action; expect?: 'accept' | 'reject' }
-  | { seat: number; signal: string }
+  /** `to` is another player's index, for targeted signals. */
+  | { seat: number; signal: string; to?: number }
   /** Advance simulated time by this many ms, ticking every TICK_INTERVAL_MS. */
   | { advance: number };
 
@@ -67,24 +77,65 @@ export function createTestPlayers(count: number): PlayerInfo[] {
   }));
 }
 
+/** Players for several teams, numbered team by team, with their rosters. */
+export function createTestTeams(sizes: number[]): { players: PlayerInfo[]; teams: TeamRoster[] } {
+  const players: PlayerInfo[] = [];
+  const teams = sizes.map((size, t) => {
+    const ids = Array.from({ length: size }, (_, seat) => {
+      const player = { id: `t${t + 1}-p${seat + 1}`, name: `T${t + 1} P${seat + 1}`, seat };
+      players.push(player);
+      return player.id;
+    });
+    return { id: `team-${t + 1}`, playerIds: ids };
+  });
+  return { players, teams };
+}
+
 export class PuzzleDriver<State, View, Action> {
   readonly module: PuzzleServerModule<State, View, Action>;
   readonly players: PlayerInfo[];
+  readonly teams: TeamRoster[];
   readonly session: PuzzleSession<State, View, Action>;
   private readonly hidden: HiddenInfo<State>[];
+  private comms: CommsState;
   private now = 0;
 
   constructor(module: PuzzleServerModule<State, View, Action>, options: StartOptions<State>) {
     this.module = module;
-    this.players = createTestPlayers(options.players);
+    const shared = module.manifest.instance === 'shared';
+    if (shared && !options.teams) throw new HarnessError('shared puzzles need `teams: [sizes]`');
+    if (!shared && options.players === undefined) throw new HarnessError('pass `players: n`');
+    const roster = shared
+      ? createTestTeams(options.teams ?? [])
+      : (() => {
+          const players = createTestPlayers(options.players ?? 0);
+          return { players, teams: [{ id: 'team-1', playerIds: players.map((p) => p.id) }] };
+        })();
+    this.players = roster.players;
+    this.teams = roster.teams;
     this.hidden = options.hidden ?? [];
+    this.comms = options.comms ?? {};
     this.session = new PuzzleSession(module, {
       seed: options.seed ?? 'test-seed',
-      teamId: 'team-1',
+      teamId: shared ? 'shared' : 'team-1',
       players: this.players,
+      teams: this.teams,
+      roundIndex: options.roundIndex ?? 0,
       clock: () => this.now,
+      comms: () => this.comms,
     });
     this.check('after init');
+  }
+
+  /** Simulates the engine changing comms state (e.g. a voice swap). */
+  setComms(comms: CommsState): void {
+    this.comms = comms;
+    this.check(`after comms changed to ${JSON.stringify(comms)}`);
+  }
+
+  /** Where a clip from this player would go (null: the puzzle has no onClip). */
+  clip(seat: number): ClipRouting | null {
+    return this.session.routeClip(this.player(seat).id);
   }
 
   get state(): State {
@@ -130,8 +181,9 @@ export class PuzzleDriver<State, View, Action> {
     return outcome;
   }
 
-  signal(seat: number, signal: string): boolean {
-    const changed = this.session.signal(this.player(seat).id, signal);
+  signal(seat: number, signal: string, to?: number): boolean {
+    const target = to === undefined ? undefined : this.player(to).id;
+    const changed = this.session.signal(this.player(seat).id, signal, target);
     this.check(`after seat ${seat} signal "${signal}"`);
     return changed;
   }
@@ -152,11 +204,13 @@ export class PuzzleDriver<State, View, Action> {
     deepFreeze(state);
     assertJson(state, `state ${when}`);
 
-    const ctx = {
+    const ctx: Context = {
       teamId: this.session.teamId,
       players: this.players,
+      teams: this.teams,
       elapsedMs: this.now,
       rng: createRng('harness-view'),
+      comms: this.comms,
     };
     for (const player of this.players) {
       const view = this.module.view(state, player.id, ctx);
@@ -193,9 +247,18 @@ export function startPuzzle<State, View, Action>(
     throw new HarnessError(`invalid manifest for "${module.manifest.id}": ${problems.join('; ')}`);
   }
   const { min, max } = module.manifest.playersPerTeam;
-  if (options.players < min || options.players > max) {
+  const sizes = options.teams ?? [options.players ?? 0];
+  for (const size of sizes) {
+    if (size < min || size > max) {
+      throw new HarnessError(
+        `"${module.manifest.id}" supports ${min}-${max} players per team, not ${size}`,
+      );
+    }
+  }
+  const teamRange = module.manifest.teams;
+  if (options.teams && (sizes.length < teamRange.min || sizes.length > teamRange.max)) {
     throw new HarnessError(
-      `"${module.manifest.id}" supports ${min}-${max} players per team, not ${options.players}`,
+      `"${module.manifest.id}" supports ${teamRange.min}-${teamRange.max} teams, not ${sizes.length}`,
     );
   }
 
@@ -223,7 +286,7 @@ export function runPuzzleScript<State, View, Action>(
     if ('advance' in step) {
       game.advance(step.advance);
     } else if ('signal' in step) {
-      game.signal(step.seat, step.signal);
+      game.signal(step.seat, step.signal, step.to);
     } else {
       const outcome = game.act(step.seat, step.action);
       const expected = step.expect ?? 'accept';

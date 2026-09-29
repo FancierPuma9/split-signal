@@ -82,6 +82,24 @@ describe('parseClientMessage', () => {
     ).toBeNull();
   });
 
+  it('parses targeted signals and draw batches', () => {
+    expect(parse({ type: 'comms.signal', signal: 'up', to: 'p2' })).toEqual({
+      type: 'comms.signal',
+      signal: 'up',
+      to: 'p2',
+    });
+    expect(parse({ type: 'comms.signal', signal: 'up', to: 5 })).toBeNull();
+    const batch = { strokeId: 's1', points: [{ x: 0.5, y: 0.25, dt: 10 }], done: false };
+    expect(parse({ type: 'comms.draw', ...batch })).toEqual({ type: 'comms.draw', ...batch });
+    expect(parse({ type: 'comms.draw', ...batch, points: [{ x: 2, y: 0, dt: 0 }] })).toBeNull();
+    expect(
+      parse({ type: 'comms.draw', ...batch, points: Array(100).fill({ x: 0, y: 0, dt: 0 }) }),
+    ).toBeNull();
+    expect(
+      parse({ type: 'comms.draw', ...batch, points: [{ x: 0, y: 0, dt: 0, junk: 1 }] }),
+    ).toEqual({ type: 'comms.draw', ...batch, points: [{ x: 0, y: 0, dt: 0 }] });
+  });
+
   it('rejects malformed input', () => {
     for (const raw of [
       'not json',

@@ -1,4 +1,3 @@
-import { createRng, type Context } from '@split-signal/shared';
 import { describe, expect, it } from 'vitest';
 import { startPuzzle, type HiddenInfo, type PuzzleDriver } from '../harness';
 import puzzle, { HOLD_MS, distortionFor } from './server';
@@ -22,15 +21,7 @@ function tune(game: Game) {
   game.act(1, { type: 'switch', control: 'squelch', on: target.squelch });
 }
 
-const clipTo = (game: Game, from: number) => {
-  const ctx: Context = {
-    teamId: 't',
-    players: game.players,
-    elapsedMs: 0,
-    rng: createRng('x'),
-  };
-  return puzzle.onClip!(game.state, game.player(from).id, ctx);
-};
+const clipTo = (game: Game, from: number) => game.clip(from)!;
 
 describe('radio tune', () => {
   it('shows the sender the target and the receiver only their panel', () => {

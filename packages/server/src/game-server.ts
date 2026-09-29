@@ -4,6 +4,7 @@ import {
   type ClientMessage,
   type IceServerConfig,
   type ServerMessage,
+  type VoicePeer,
 } from '@split-signal/shared';
 import { voicePeers } from './comms/voice';
 import { newId, newSeatToken, newSeed } from './ids';
@@ -125,7 +126,11 @@ export class GameServer {
         return engine.handleAction(playerId, message.payload);
       }
       case 'comms.signal':
-        return this.engines.get(room.code)?.handleSignal(playerId, message.signal);
+        return this.engines.get(room.code)?.handleSignal(playerId, message.signal, message.to);
+      case 'comms.draw': {
+        const { strokeId, points, done } = message;
+        return this.engines.get(room.code)?.handleDraw(playerId, { strokeId, points, done });
+      }
       case 'comms.clip': {
         const engine = this.engines.get(room.code);
         if (!engine) return conn.send({ type: 'match.reject', reason: 'No match in progress' });
@@ -370,6 +375,7 @@ export class GameServer {
   private syncVoice(room: Room): void {
     const connected = new Set(room.players.filter((p) => p.connected).map((p) => p.id));
     const engine = room.status === 'lobby' ? undefined : this.engines.get(room.code);
+    const voice = engine?.voiceState();
     const peers = voicePeers({
       playerIds: [...connected],
       match: engine && {
@@ -379,12 +385,19 @@ export class GameServer {
           id: t.id,
           playerIds: t.playerIds.filter((id) => connected.has(id)),
         })),
+        voiceOpen: voice?.open ?? true,
+        activeByTeam: voice?.activeByTeam ?? {},
       },
     });
 
-    for (const [playerId, list] of peers) {
-      this.voiceAllowed.set(playerId, new Set(list));
-      const payload = list.map((id) => ({ id, epoch: this.epochs.get(id) ?? 0 }));
+    for (const [playerId, links] of peers) {
+      this.voiceAllowed.set(playerId, new Set(links.map((l) => l.id)));
+      const payload: VoicePeer[] = links.map((l) => ({
+        id: l.id,
+        epoch: this.epochs.get(l.id) ?? 0,
+        ...(l.send === false ? { send: false } : {}),
+        ...(l.hear === false ? { hear: false } : {}),
+      }));
       const json = JSON.stringify(payload);
       if (this.voiceSent.get(playerId) === json) continue;
       this.voiceSent.set(playerId, json);

@@ -1,10 +1,10 @@
-import type { IceServerConfig, RtcPayload } from '@split-signal/shared';
+import type { IceServerConfig, RtcPayload, VoicePeer } from '@split-signal/shared';
 
 export type MicState = 'off' | 'requesting' | 'on' | 'muted' | 'blocked' | 'unsupported';
 
 export interface VoiceSnapshot {
   mic: MicState;
-  peers: Array<{ id: string; state: RTCPeerConnectionState }>;
+  peers: Array<{ id: string; state: RTCPeerConnectionState; send: boolean; hear: boolean }>;
 }
 
 interface Peer {
@@ -13,6 +13,10 @@ interface Peer {
   pc: RTCPeerConnection;
   audio: HTMLAudioElement;
   pendingIce: RTCIceCandidateInit[];
+  /** Whether our mic goes to this peer (false while someone else holds the floor). */
+  send: boolean;
+  /** Whether we play this peer's audio. */
+  hear: boolean;
 }
 
 /**
@@ -20,7 +24,9 @@ interface Peer {
  * the latest comms.peers list and closes everything else. It never connects to anyone on its own.
  *
  * Each connection has one audio transceiver in sendrecv mode from the start, so turning the mic on
- * later (or muting) only swaps the outgoing track and never needs renegotiation.
+ * later, muting, or handing the floor to someone else (one-way voice) only swaps the outgoing
+ * track and never needs renegotiation. When the server says not to send to a peer, no audio track
+ * is attached at all.
  */
 export class VoiceManager {
   private readonly listeners = new Set<() => void>();
@@ -64,7 +70,7 @@ export class VoiceManager {
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       this.setMic('on');
-      for (const peer of this.peers.values()) void this.attachTrack(peer.pc);
+      for (const peer of this.peers.values()) void this.attachTrack(peer);
     } catch {
       this.setMic('blocked');
     }
@@ -82,14 +88,26 @@ export class VoiceManager {
     this.setMic(muted ? 'muted' : 'on');
   }
 
-  /** Applies the server's peer list: connect to new peers, drop missing ones. */
-  setPeers(list: ReadonlyArray<{ id: string; epoch: number }>): void {
-    const wanted = new Map(list.map((p) => [p.id, p.epoch]));
+  /** Applies the server's peer list: connect to new peers, drop missing ones, update send/hear. */
+  setPeers(list: readonly VoicePeer[]): void {
+    const wanted = new Map(list.map((p) => [p.id, p]));
     for (const [id, peer] of this.peers) {
-      if (wanted.get(id) !== peer.epoch) this.closePeer(id);
+      if (wanted.get(id)?.epoch !== peer.epoch) this.closePeer(id);
     }
-    for (const [id, epoch] of wanted) {
-      if (!this.peers.has(id)) this.openPeer(id, epoch);
+    for (const [id, link] of wanted) {
+      const send = link.send !== false;
+      const hear = link.hear !== false;
+      const peer = this.peers.get(id);
+      if (!peer) {
+        this.openPeer(id, link.epoch, send, hear);
+        continue;
+      }
+      peer.hear = hear;
+      peer.audio.muted = !hear;
+      if (peer.send !== send) {
+        peer.send = send;
+        void this.attachTrack(peer);
+      }
     }
     this.emit();
   }
@@ -106,7 +124,7 @@ export class VoiceManager {
         await pc.setRemoteDescription({ type: 'offer', sdp: data.sdp });
         const transceiver = pc.getTransceivers()[0];
         if (transceiver) transceiver.direction = 'sendrecv';
-        await this.attachTrack(pc);
+        await this.attachTrack(peer);
         await this.flushIce(peer);
         await pc.setLocalDescription(await pc.createAnswer());
         this.sendLocalDescription(peer);
@@ -125,13 +143,14 @@ export class VoiceManager {
     this.emit();
   }
 
-  private openPeer(id: string, epoch: number): void {
+  private openPeer(id: string, epoch: number, send: boolean, hear: boolean): void {
     const pc = new RTCPeerConnection({ iceServers: this.iceServers });
     const audio = document.createElement('audio');
     audio.autoplay = true;
     audio.hidden = true;
+    audio.muted = !hear;
     document.body.append(audio);
-    const peer: Peer = { id, epoch, pc, audio, pendingIce: [] };
+    const peer: Peer = { id, epoch, pc, audio, pendingIce: [], send, hear };
     this.peers.set(id, peer);
 
     pc.ontrack = (event) => {
@@ -160,7 +179,7 @@ export class VoiceManager {
   private async makeOffer(peer: Peer): Promise<void> {
     try {
       peer.pc.addTransceiver('audio', { direction: 'sendrecv' });
-      await this.attachTrack(peer.pc);
+      await this.attachTrack(peer);
       await peer.pc.setLocalDescription(await peer.pc.createOffer());
       this.sendLocalDescription(peer);
     } catch (error) {
@@ -175,9 +194,9 @@ export class VoiceManager {
     this.transport?.(peer.id, { kind: description.type, sdp: description.sdp });
   }
 
-  private async attachTrack(pc: RTCPeerConnection): Promise<void> {
-    const sender = pc.getTransceivers()[0]?.sender;
-    const track = this.stream?.getAudioTracks()[0] ?? null;
+  private async attachTrack(peer: Peer): Promise<void> {
+    const sender = peer.pc.getTransceivers()[0]?.sender;
+    const track = peer.send ? (this.stream?.getAudioTracks()[0] ?? null) : null;
     if (sender && sender.track !== track) await sender.replaceTrack(track);
   }
 
@@ -204,7 +223,12 @@ export class VoiceManager {
   private emit(): void {
     this.snapshotCache = {
       mic: this.mic,
-      peers: [...this.peers.values()].map((p) => ({ id: p.id, state: p.pc.connectionState })),
+      peers: [...this.peers.values()].map((p) => ({
+        id: p.id,
+        state: p.pc.connectionState,
+        send: p.send,
+        hear: p.hear,
+      })),
     };
     for (const listener of this.listeners) listener();
   }

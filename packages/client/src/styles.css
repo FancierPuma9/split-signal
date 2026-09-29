@@ -564,6 +564,79 @@ th {
   }
 }
 
+.clip-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.talk {
+  padding: 10px 18px;
+  border-radius: 999px;
+  user-select: none;
+  touch-action: none;
+}
+
+.talking {
+  background: var(--danger);
+  color: #fff;
+}
+
+.budgets {
+  list-style: none;
+  margin: 0 0 0 auto;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.budgets li {
+  display: grid;
+  grid-template-columns: 60px 120px 40px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.budget-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.budget-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.comms-banner {
+  margin-top: 12px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  text-align: center;
+}
+
+.comms-banner.live {
+  background: color-mix(in srgb, var(--good) 25%, var(--surface));
+  border: 1px solid var(--good);
+}
+
+.comms-banner.listening {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
 .scoreboard tr.winner td {
   font-weight: 700;
 }

@@ -6,8 +6,10 @@ export interface TeamRoundResult {
   teamId: string;
   solved: boolean;
   moves?: number;
-  /** Round time when the team solved. */
+  /** Round time when the team solved (may include puzzle penalties). */
   elapsedMs?: number;
+  /** Compare puzzles that score in points (higher is better). */
+  points?: number;
 }
 
 export interface RoundSummary {

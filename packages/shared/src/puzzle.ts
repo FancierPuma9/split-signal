@@ -1,4 +1,4 @@
-import type { CommsRule } from './comms';
+import { validateComms, type CommsRule } from './comms';
 import type { Rng } from './rng';
 
 export interface PlayerInfo {
@@ -41,6 +41,16 @@ export interface PuzzleManifest {
    * the fastest solve wins. Defaults to 2000.
    */
   raceGraceMs?: number;
+  /**
+   * per-team (default): one instance per team. shared: one instance for the whole room (arena);
+   * init gets every player plus `teams`, and score() reports per team.
+   */
+  instance?: 'per-team' | 'shared';
+}
+
+export interface TeamRoster {
+  id: string;
+  playerIds: string[];
 }
 
 export interface InitContext {
@@ -48,14 +58,37 @@ export interface InitContext {
   seed: string;
   /** Seeded from seed + puzzle id, so every team gets an identical puzzle. */
   rng: Rng;
+  /** The team for per-team puzzles; 'shared' for shared-instance puzzles. */
   teamId: string;
-  /** The players on this team, in seat order. */
+  /** The players in this instance, in team then seat order. */
   players: readonly PlayerInfo[];
+  /** The teams in this instance: one for per-team puzzles, all of them for shared ones. */
+  teams: readonly TeamRoster[];
+  /** 0-based round number within the match (e.g. to rotate roles). */
+  roundIndex: number;
+}
+
+/**
+ * Communication state the engine manages and puzzles may read (and clients see), e.g. who is live
+ * under voice-alternating.
+ */
+export interface CommsState {
+  /** voice-alternating: who may talk right now. */
+  activePlayerId?: string;
+  /** voice-alternating with warningMs: time until the next swap, inside the warning window. */
+  swapInMs?: number;
+  /** voice-timed: time left before voice closes (0 once closed). */
+  voiceRemainingMs?: number;
+  /** budget-clips: each player's remaining mic time this round. */
+  budgets?: Record<string, number>;
+  /** Clip rules: this player's clips that haven't been delivered yet. */
+  pendingDeliveries?: number;
 }
 
 export interface Context {
   teamId: string;
   players: readonly PlayerInfo[];
+  teams: readonly TeamRoster[];
   /** Round time elapsed in ms, excluding pauses. */
   elapsedMs: number;
   /**
@@ -63,13 +96,28 @@ export interface Context {
    * every team. Do not use it inside view(); views must be pure.
    */
   rng: Rng;
+  /** Engine-managed comms state for this instance (e.g. activePlayerId). */
+  comms: CommsState;
 }
 
 export type ApplyResult<State> = { state: State } | { reject: string };
 
-export interface PuzzleScore {
+export interface TeamScore {
+  /** Shared instances: whether this team finished (race puzzles). */
+  solved?: boolean;
   moves?: number;
+  /** May include penalties. */
   elapsedMs?: number;
+  /** Compare puzzles only: higher is better. When present it decides the round. */
+  points?: number;
+}
+
+/**
+ * Per-team puzzles return their own team's score. Shared-instance puzzles return `teams` with an
+ * entry for every team.
+ */
+export interface PuzzleScore extends TeamScore {
+  teams?: Record<string, TeamScore>;
 }
 
 /**
@@ -90,7 +138,7 @@ export type ClipRouting =
 export interface PuzzleServerModule<State, View, Action> {
   manifest: PuzzleManifest;
 
-  /** Called once per team per round. All randomness comes from ctx.rng. Never use Math.random. */
+  /** Called once per instance per round. All randomness comes from ctx.rng. Never Math.random. */
   init(ctx: InitContext): State;
 
   /** Per-player projection. Return only what THIS player is allowed to know. */
@@ -105,17 +153,21 @@ export interface PuzzleServerModule<State, View, Action> {
   /** Optional. Called every TICK_INTERVAL_MS, for turn timers or simultaneous resolution. */
   tick?(state: State, nowMs: number, ctx: Context): State;
 
-  /** Optional. Called when a player sends a discrete signal that should affect state. */
-  onSignal?(state: State, fromPlayerId: string, signal: string, ctx: Context): State;
+  /**
+   * Optional. Called when a player sends a discrete signal. `to` is set for signals aimed at one
+   * player (shared instances).
+   */
+  onSignal?(state: State, fromPlayerId: string, signal: string, ctx: Context, to?: string): State;
 
   /**
-   * Required for puzzles with a clips comms rule. Called when a player records a clip, and again
-   * (for the requester only) when a recipient sends the 'repeat' signal: say who hears it and with
-   * what parameters. Computed on the server so they can depend on secrets, like how far the
-   * listener's settings are from the answer.
+   * Where a clip goes and with what parameters. Required for the 'clips' rule; optional for
+   * delayed-clips and budget-clips, which default to "every teammate, clean". Also called (for
+   * the requester only) when a recipient sends 'repeat'. Runs on the server, so parameters can
+   * depend on secrets.
    */
   onClip?(state: State, fromPlayerId: string, ctx: Context): ClipRouting;
 
+  /** Per-team: this team is done. Shared: the round is over. */
   isSolved(state: State): boolean;
 
   /** Used to rank teams. Provide whichever apply to this puzzle. */
@@ -125,6 +177,22 @@ export interface PuzzleServerModule<State, View, Action> {
 /** A module with its types erased, as held by the catalog and runtime. */
 export type AnyPuzzleServerModule = PuzzleServerModule<unknown, unknown, unknown>;
 
+export interface ClipDelivery {
+  id: number;
+  from: string;
+  mime: string;
+  data: string;
+  params: unknown;
+  at: number;
+}
+
+/** A batch of pen samples. Coordinates are normalized to [0, 1]; dt is ms since the batch began. */
+export interface DrawBatch {
+  strokeId: string;
+  points: Array<{ x: number; y: number; dt: number }>;
+  done: boolean;
+}
+
 /** Props the client puzzle host passes to a puzzle's view component. */
 export interface PuzzleClientProps<View, Action> {
   view: View;
@@ -132,26 +200,29 @@ export interface PuzzleClientProps<View, Action> {
   signals: {
     /** Signals this puzzle allows. The shell also renders buttons for them. */
     allowed: string[];
-    send: (signal: string) => void;
+    /** `to` targets one player (shared instances). */
+    send: (signal: string, to?: string) => void;
     /** This round's signals, oldest first, including your own. `at` is from performance.now(). */
     incoming: Array<{ from: string; signal: string; at: number }>;
   };
-  /** Present when the puzzle's comms rule is clips. */
+  /** Present for clip rules (clips, delayed-clips, budget-clips). */
   clips?: {
     /** Records from the mic until stop() or the rule's max length, then uploads. */
     record: () => Promise<void>;
     stop: () => void;
     recording: boolean;
     /** Clips delivered to this player this round, oldest first. `data` is base64 audio. */
-    incoming: Array<{
-      id: number;
-      from: string;
-      mime: string;
-      data: string;
-      params: unknown;
-      at: number;
-    }>;
+    incoming: ClipDelivery[];
   };
+  /** Present for the draw rule. Batches arrive outside React state; subscribe to receive them. */
+  draw?: {
+    fadeMs: number;
+    send: (batch: DrawBatch) => void;
+    /** Returns an unsubscribe function. `at` is the receive time from performance.now(). */
+    subscribe: (listener: (from: string, batch: DrawBatch, at: number) => void) => () => void;
+  };
+  /** Engine-managed comms state (who is live, mic budgets, voice countdown, clips in flight). */
+  comms: CommsState & { receivedAt: number };
   timer: { remainingMs: number; totalMs: number };
   me: PlayerInfo;
   team: TeamInfo;
@@ -182,29 +253,9 @@ export function validateManifest(m: PuzzleManifest): string[] {
   if (m.raceGraceMs !== undefined && !(m.raceGraceMs >= 0)) {
     errors.push('raceGraceMs cannot be negative');
   }
-
-  const comms = m.comms;
-  switch (comms?.type) {
-    case 'voice':
-      if (comms.scope !== 'team' && comms.scope !== 'all') {
-        errors.push(`voice scope must be 'team' or 'all'`);
-      }
-      break;
-    case 'none':
-      break;
-    case 'signals':
-      if (comms.signals.length === 0) errors.push('signals comms needs at least one signal');
-      if (new Set(comms.signals).size !== comms.signals.length)
-        errors.push('signals must be unique');
-      if (comms.cooldownMs !== undefined && comms.cooldownMs < 0) {
-        errors.push('cooldownMs cannot be negative');
-      }
-      break;
-    case 'clips':
-      if (!(comms.maxSeconds > 0)) errors.push('clips maxSeconds must be positive');
-      break;
-    default:
-      errors.push('comms.type must be voice, none, signals or clips');
+  if (m.instance !== undefined && m.instance !== 'per-team' && m.instance !== 'shared') {
+    errors.push(`instance must be 'per-team' or 'shared'`);
   }
+  errors.push(...validateComms(m.comms));
   return errors;
 }

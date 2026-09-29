@@ -1,9 +1,12 @@
 import {
   normalizeRoomCode,
   type ClientMessage,
+  type DrawBatch,
   type LobbySettings,
   type ServerMessage,
 } from '@split-signal/shared';
+
+export type DrawListener = (from: string, batch: DrawBatch, at: number) => void;
 import {
   useCallback,
   useEffect,
@@ -43,6 +46,8 @@ export function useGame() {
   const voiceState = useSyncExternalStore(voice.subscribe, voice.getSnapshot);
   const [recorder] = useState(() => new ClipRecorder());
   const [recording, setRecording] = useState(false);
+  // Draw batches arrive ~20 times a second; they go to subscribers, not through React state.
+  const [drawListeners] = useState(() => new Set<DrawListener>());
 
   useEffect(() => {
     const socket = new GameSocket();
@@ -85,6 +90,11 @@ export function useGame() {
         case 'comms.rtc':
           void voice.handleSignal(message.from, message.data);
           return;
+        case 'comms.draw': {
+          const at = performance.now();
+          for (const listener of drawListeners) listener(message.from, message.batch, at);
+          return;
+        }
       }
       dispatch({ type: 'server', message, at: performance.now() });
     };
@@ -111,7 +121,7 @@ export function useGame() {
       voice.setTransport(null);
       if (socketRef.current === socket) socketRef.current = null;
     };
-  }, [voice]);
+  }, [voice, drawListeners]);
 
   const noticeId = state.notice?.id;
   useEffect(() => {
@@ -155,7 +165,20 @@ export function useGame() {
       lock: (locked: boolean) => send({ type: 'lobby.lock', locked }),
       start: () => send({ type: 'lobby.start' }),
       act: (payload: unknown) => send({ type: 'match.action', payload }),
-      signal: (signal: string) => send({ type: 'comms.signal', signal }),
+      signal: (signal: string, to?: string) =>
+        send(
+          to === undefined
+            ? { type: 'comms.signal', signal }
+            : { type: 'comms.signal', signal, to },
+        ),
+      /** Pen samples for the draw rule. Silently dropped if the socket isn't open. */
+      draw: (batch: DrawBatch) => socketRef.current?.send({ type: 'comms.draw', ...batch }),
+      subscribeDraw: (listener: DrawListener) => {
+        drawListeners.add(listener);
+        return () => {
+          drawListeners.delete(listener);
+        };
+      },
       surrender: () => send({ type: 'match.surrender' }),
       playAgain: () => send({ type: 'match.playAgain' }),
       backToLobby: () => send({ type: 'match.backToLobby' }),
@@ -187,7 +210,7 @@ export function useGame() {
       },
       stopClip: () => recorder.stop(),
     }),
-    [send, voice, recorder],
+    [send, voice, recorder, drawListeners],
   );
 
   return { state, voice: voiceState, recording, actions };

@@ -2,15 +2,18 @@ import {
   DEFAULT_SIGNAL_COOLDOWN_MS,
   allowedSignals,
   describeComms,
+  isClipRule,
   type MatchView,
   type RoundSummary,
   type TeamRoundResult,
 } from '@split-signal/shared';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { GameState } from '../game/reducer';
 import type { GameActions } from '../game/useGame';
 import { PuzzleHost } from '../puzzle/PuzzleHost';
 import { formatTime, useCountdown } from '../puzzle/useCountdown';
+import { ClipAutoPlayer, ClipBar } from './ClipBar';
+import { CommsBanner } from './CommsBanner';
 import { SignalBar } from './SignalBar';
 
 interface MatchProps {
@@ -18,6 +21,7 @@ interface MatchProps {
   puzzleView: GameState['puzzleView'];
   signals: GameState['signals'];
   clips: GameState['clips'];
+  comms: GameState['comms'];
   recording: boolean;
   meId: string;
   isHost: boolean;
@@ -29,6 +33,7 @@ export function Match({
   puzzleView,
   signals,
   clips,
+  comms: commsState,
   recording,
   meId,
   isHost,
@@ -45,7 +50,10 @@ export function Match({
     () => ({ allowed, send: actions.signal, incoming: signals }),
     [allowed, actions.signal, signals],
   );
-  const maxClipSeconds = comms.type === 'clips' ? comms.maxSeconds : null;
+  const maxClipSeconds = isClipRule(comms) ? comms.maxSeconds : null;
+  const recordClip = useCallback(() => {
+    if (maxClipSeconds !== null) void actions.recordClip(maxClipSeconds);
+  }, [actions, maxClipSeconds]);
   const clipProps = useMemo(
     () =>
       maxClipSeconds === null
@@ -58,6 +66,18 @@ export function Match({
           },
     [maxClipSeconds, actions, recording, clips],
   );
+  const fadeMs = comms.type === 'draw' ? comms.fadeMs : null;
+  const drawProps = useMemo(
+    () =>
+      fadeMs === null
+        ? undefined
+        : { fadeMs, send: actions.draw, subscribe: actions.subscribeDraw },
+    [fadeMs, actions],
+  );
+  // The shell's signal bar is for free-form signals. Clip rules put 'repeat' in the puzzle's own
+  // UI, and signals the puzzle consumes itself (relay: false) need the puzzle's targeting UI.
+  const showSignalBar =
+    comms.type !== 'clips' && !(comms.type === 'signals' && comms.relay === false);
 
   return (
     <div className="match">
@@ -78,6 +98,8 @@ export function Match({
                 send={actions.act}
                 signals={signalProps}
                 {...(clipProps ? { clips: clipProps } : {})}
+                {...(drawProps ? { draw: drawProps } : {})}
+                comms={commsState}
                 timer={{ remainingMs, totalMs: view.phaseTotalMs ?? 0 }}
                 me={me}
                 team={{ id: myTeam.id, name: myTeam.name, players: myTeam.players }}
@@ -93,8 +115,27 @@ export function Match({
             )}
           </div>
         )}
-        {/* Clips puzzles handle their extra signals (like 'repeat') in their own UI. */}
-        {view.phase === 'playing' && myTeam && !myTeam.round.solved && comms.type !== 'clips' && (
+        {view.phase === 'playing' && myTeam && !myTeam.round.solved && (
+          <CommsBanner rule={comms} comms={commsState} meId={meId} paused={Boolean(view.paused)} />
+        )}
+        {view.phase === 'playing' &&
+          myTeam &&
+          !myTeam.round.solved &&
+          (comms.type === 'delayed-clips' || comms.type === 'budget-clips') && (
+            <>
+              <ClipBar
+                rule={comms}
+                comms={commsState}
+                meId={meId}
+                nameOf={(id) => playerName(view, id)}
+                recording={recording}
+                onRecord={recordClip}
+                onStop={actions.stopClip}
+              />
+              <ClipAutoPlayer clips={clips} />
+            </>
+          )}
+        {view.phase === 'playing' && myTeam && !myTeam.round.solved && showSignalBar && (
           <SignalBar
             allowed={allowed}
             cooldownMs={

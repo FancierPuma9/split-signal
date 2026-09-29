@@ -1,4 +1,12 @@
-import type { ClipRouting, Context, PlayerInfo, PuzzleScore, PuzzleServerModule } from './puzzle';
+import type {
+  ClipRouting,
+  CommsState,
+  Context,
+  PlayerInfo,
+  PuzzleScore,
+  PuzzleServerModule,
+  TeamRoster,
+} from './puzzle';
 import { createRng, type Rng } from './rng';
 
 /** How often the runtime calls a module's tick(). */
@@ -6,25 +14,34 @@ export const TICK_INTERVAL_MS = 100;
 
 export interface SessionOptions {
   seed: string;
+  /** The team for per-team puzzles; 'shared' for a shared instance. */
   teamId: string;
-  /** The team's players, in seat order. */
+  /** Everyone in this instance, in team then seat order. */
   players: readonly PlayerInfo[];
+  /** Defaults to a single team made of `players`. */
+  teams?: readonly TeamRoster[];
+  roundIndex?: number;
   /** Returns round time elapsed in ms, excluding pauses. */
   clock: () => number;
+  /** Engine-managed comms state for this instance. */
+  comms?: () => CommsState;
 }
 
 export type ActionOutcome =
   { ok: true; changed: boolean } | { ok: false; reason: string; error?: unknown };
 
 /**
- * One team's live instance of a puzzle: the pure core shared by the server runtime and the test
- * harness. It owns state and calls into the module, but does no I/O and keeps no timers.
+ * One live instance of a puzzle (a team's, or the whole room's for shared puzzles): the pure core
+ * shared by the server runtime and the test harness. It owns state and calls into the module, but
+ * does no I/O and keeps no timers.
  */
 export class PuzzleSession<State = unknown, View = unknown, Action = unknown> {
   readonly module: PuzzleServerModule<State, View, Action>;
   readonly teamId: string;
   readonly players: readonly PlayerInfo[];
+  readonly teams: readonly TeamRoster[];
   private readonly clock: () => number;
+  private readonly comms: () => CommsState;
   private readonly playRng: Rng;
   private current: State;
 
@@ -32,7 +49,11 @@ export class PuzzleSession<State = unknown, View = unknown, Action = unknown> {
     this.module = module;
     this.teamId = options.teamId;
     this.players = options.players;
+    this.teams = options.teams ?? [
+      { id: options.teamId, playerIds: options.players.map((p) => p.id) },
+    ];
     this.clock = options.clock;
+    this.comms = options.comms ?? (() => ({}));
     const puzzleId = module.manifest.id;
     this.playRng = createRng(`${options.seed}:${puzzleId}:play`);
     this.current = module.init({
@@ -40,6 +61,8 @@ export class PuzzleSession<State = unknown, View = unknown, Action = unknown> {
       rng: createRng(`${options.seed}:${puzzleId}`),
       teamId: options.teamId,
       players: options.players,
+      teams: this.teams,
+      roundIndex: options.roundIndex ?? 0,
     });
   }
 
@@ -78,17 +101,17 @@ export class PuzzleSession<State = unknown, View = unknown, Action = unknown> {
   }
 
   /** Calls the module's onSignal, if it has one. Returns whether state changed. */
-  signal(playerId: string, signal: string): boolean {
+  signal(playerId: string, signal: string, to?: string): boolean {
     if (!this.module.onSignal || !this.hasPlayer(playerId) || this.solved) return false;
     const before = this.current;
-    this.current = this.module.onSignal(before, playerId, signal, this.context());
+    this.current = this.module.onSignal(before, playerId, signal, this.context(), to);
     return this.current !== before;
   }
 
-  /** Asks the module where a clip from this player goes. */
-  routeClip(fromPlayerId: string): ClipRouting {
-    if (!this.module.onClip) return { reject: "This puzzle doesn't use clips" };
+  /** Asks the module where a clip from this player goes; null if it has no onClip. */
+  routeClip(fromPlayerId: string): ClipRouting | null {
     if (!this.hasPlayer(fromPlayerId)) return { reject: 'You are not on this team' };
+    if (!this.module.onClip) return null;
     return this.module.onClip(this.current, fromPlayerId, this.context());
   }
 
@@ -109,8 +132,10 @@ export class PuzzleSession<State = unknown, View = unknown, Action = unknown> {
     return {
       teamId: this.teamId,
       players: this.players,
+      teams: this.teams,
       elapsedMs: this.clock(),
       rng: this.playRng,
+      comms: this.comms(),
     };
   }
 }

@@ -1,5 +1,6 @@
 import { normalizeRoomCode, type LobbySettings, type RoomView } from './lobby';
 import type { MatchView } from './match';
+import type { CommsState, DrawBatch } from './puzzle';
 
 /**
  * WebSocket protocol. Every message is JSON with a dotted `type`:
@@ -39,12 +40,17 @@ export type ClientMessage =
   | { type: 'match.surrender' }
   | { type: 'match.playAgain' }
   | { type: 'match.backToLobby' }
-  /** A discrete signal to teammates. The server drops anything the puzzle doesn't allow. */
-  | { type: 'comms.signal'; signal: string }
+  /**
+   * A discrete signal: to teammates, or to one player with `to` (shared instances). The server
+   * drops anything the puzzle doesn't allow.
+   */
+  | { type: 'comms.signal'; signal: string; to?: string }
   /** WebRTC signaling for a voice connection to `to`. Dropped unless `to` is a current peer. */
   | { type: 'comms.rtc'; to: string; data: RtcPayload }
-  /** A recorded clip (base64 audio), for puzzles with a clips comms rule. */
-  | { type: 'comms.clip'; mime: string; data: string; durationMs: number };
+  /** A recorded clip (base64 audio), for puzzles with a clip comms rule. */
+  | { type: 'comms.clip'; mime: string; data: string; durationMs: number }
+  /** Pen samples for the draw rule, sent about every 50 ms while drawing. */
+  | ({ type: 'comms.draw' } & DrawBatch);
 
 export type ServerMessage =
   /** Sent to a player when they enter a room. Store seatToken to rejoin later. */
@@ -66,19 +72,35 @@ export type ServerMessage =
   /**
    * The exact set of players you should have voice connections with right now. Open connections
    * to new peers, close any not listed. A changed epoch means that peer reconnected: start over.
+   * send/hear (default true) switch your mic to that peer and their audio on or off without
+   * reconnecting, for one-way-at-a-time voice.
    */
-  | { type: 'comms.peers'; peers: Array<{ id: string; epoch: number }> }
+  | { type: 'comms.peers'; peers: VoicePeer[] }
   | { type: 'comms.rtc'; from: string; data: RtcPayload }
   /** A clip for you, with parameters the puzzle's client applies (e.g. distortion). */
   | { type: 'comms.clip'; id: number; from: string; mime: string; data: string; params: unknown }
+  /** A teammate's pen samples, under the draw rule. */
+  | { type: 'comms.draw'; from: string; batch: DrawBatch }
+  /** Engine-managed comms state for you this round (who is live, budgets, clips in flight). */
+  | { type: 'comms.state'; state: CommsState }
   | { type: 'error'; message: string };
+
+export interface VoicePeer {
+  id: string;
+  epoch: number;
+  send?: boolean;
+  hear?: boolean;
+}
 
 /** Default minimum gap between one player's signals when the puzzle doesn't set cooldownMs. */
 export const DEFAULT_SIGNAL_COOLDOWN_MS = 750;
 /** Minimum gap between one player's clips. */
-export const CLIP_COOLDOWN_MS = 3000;
+export const CLIP_COOLDOWN_MS = 2000;
 /** Largest clip accepted, as base64 characters (roughly 190 KB of audio). */
 export const MAX_CLIP_BASE64 = 256_000;
+/** Draw stream limits: points per batch and batches per second per player. */
+export const MAX_DRAW_POINTS = 64;
+export const MAX_DRAW_BATCHES_PER_SECOND = 25;
 
 type Rec = Record<string, unknown>;
 
@@ -180,10 +202,31 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return typeof data.locked === 'boolean' ? { type: 'lobby.lock', locked: data.locked } : null;
     case 'match.action':
       return 'payload' in data ? { type: 'match.action', payload: data.payload } : null;
-    case 'comms.signal':
-      return typeof data.signal === 'string' && data.signal.length > 0 && data.signal.length <= 32
-        ? { type: 'comms.signal', signal: data.signal }
+    case 'comms.signal': {
+      if (typeof data.signal !== 'string' || data.signal.length === 0 || data.signal.length > 32) {
+        return null;
+      }
+      if (data.to === undefined) return { type: 'comms.signal', signal: data.signal };
+      return typeof data.to === 'string' && data.to.length > 0 && data.to.length <= 64
+        ? { type: 'comms.signal', signal: data.signal, to: data.to }
         : null;
+    }
+    case 'comms.draw': {
+      const { strokeId, points, done } = data;
+      if (typeof strokeId !== 'string' || strokeId.length === 0 || strokeId.length > 32)
+        return null;
+      if (typeof done !== 'boolean' || !Array.isArray(points)) return null;
+      if (points.length > MAX_DRAW_POINTS) return null;
+      const clean: DrawBatch['points'] = [];
+      for (const p of points) {
+        if (!isRecord(p)) return null;
+        const { x, y, dt } = p;
+        if (typeof x !== 'number' || typeof y !== 'number' || typeof dt !== 'number') return null;
+        if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1 && dt >= 0 && dt <= 1000)) return null;
+        clean.push({ x, y, dt });
+      }
+      return { type: 'comms.draw', strokeId, points: clean, done };
+    }
     case 'comms.rtc': {
       const payload = parseRtcPayload(data.data);
       return typeof data.to === 'string' && data.to.length <= 64 && payload

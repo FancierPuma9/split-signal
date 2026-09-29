@@ -225,7 +225,14 @@ describe('sliding grid', () => {
   it('is solved when every tile reaches its target, scored in turns', () => {
     const players = createTestPlayers(2);
     const [p0, p1] = players as [PlayerInfo, PlayerInfo];
-    const ctx: Context = { teamId: 't', players, elapsedMs: 0, rng: createRng('x') };
+    const ctx: Context = {
+      teamId: 't',
+      players,
+      teams: [{ id: 't', playerIds: players.map((p) => p.id) }],
+      elapsedMs: 0,
+      rng: createRng('x'),
+      comms: {},
+    };
     const state: State = {
       size: 4,
       tiles: [

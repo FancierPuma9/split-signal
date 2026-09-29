@@ -1,0 +1,151 @@
+.root {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: min(820px, 100%);
+}
+
+.role {
+  margin: 0;
+  text-align: center;
+  font-weight: 600;
+}
+
+.lot {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 18px;
+  width: 100%;
+  align-items: start;
+}
+
+@media (width < 680px) {
+  .lot {
+    grid-template-columns: 1fr;
+  }
+}
+
+.painting {
+  width: 100%;
+  border: 12px solid #b08d57;
+  outline: 3px solid #6f5634;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 50%);
+  background: #fff;
+}
+
+.side {
+  display: grid;
+  gap: 8px;
+}
+
+.caption {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.caption em {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.high {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 2.2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.highBy {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--team);
+}
+
+.clock {
+  margin: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.going {
+  color: #ffc53d;
+  animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.ladder {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  max-height: 150px;
+  overflow: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.ladder li {
+  padding: 2px 8px;
+  border-left: 3px solid var(--team);
+}
+
+.ladder li span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+button.pass {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.hammer {
+  min-width: 160px;
+  font-size: 1.2rem;
+}
+
+.result {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.cast {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.cast li {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--team);
+  font-size: 0.85rem;
+  text-transform: capitalize;
+}
+
+.cast li.out {
+  opacity: 0.5;
+}

@@ -82,6 +82,25 @@ describe('MatchEngine: shared instances', () => {
   });
 });
 
+describe('MatchEngine: arena money', () => {
+  it('gives the round to the team that stayed out when the buyer overpays', () => {
+    const goingOnce = findPuzzle('going-once')!;
+    const { engine } = setup([goingOnce]);
+    // Round 0: Red sells (r1 Seller, r2 Bidder); Blue is informed (b1 Appraiser, b2 Bidder).
+    engine.handleAction('r1', { type: 'open' });
+    // The Bidders trade +$250 raises until Red's blind Bidder holds $2,250, over any possible
+    // value ($2,000 at most), and Blue walks away.
+    for (let i = 0; i < 9; i++)
+      engine.handleAction(i % 2 === 0 ? 'r2' : 'b2', { type: 'bid', raise: 250 });
+    engine.handleAction('b2', { type: 'pass' });
+    expect(engine.state.phase).toBe('scoreboard');
+    expect(engine.state.history[0]).toMatchObject({ outcome: 'won', winnerTeamId: 'blue' });
+    expect(engine.state.history[0]?.results.find((r) => r.teamId === 'red')?.points).toBeLessThan(
+      0,
+    );
+  });
+});
+
 interface SignalState {
   log: Array<{ from: string; signal: string; to?: string }>;
   round: number;

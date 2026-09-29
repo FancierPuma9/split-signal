@@ -6,6 +6,7 @@ import colorSweep from './color-sweep/server';
 import echoClaw from './echo-claw/server';
 import elevators from './elevators/server';
 import ghostInk from './ghost-ink/server';
+import goingOnce from './going-once/server';
 import melodySort from './melody-sort/server';
 import padlock from './padlock/server';
 import pickSix from './pick-six/server';
@@ -39,6 +40,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   pickSix,
   badAdvice,
   swapStack,
+  goingOnce,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

@@ -6,12 +6,19 @@ twist is always in how players are allowed to communicate.
 
 Inspired by _We Were Here_ (asymmetric information) and _Jackbox_ (room codes, play with friends).
 
-> **Status:** early development, through phase 6 of [the build plan](docs/PLAN.md). Rooms, the
-> lobby, the full match loop (rounds, scoring, pause and rejoin, surrender), signal comms,
-> peer-to-peer voice chat and recorded voice clips work, with all eight planned puzzles:
-> **Sliding Grid**, **Padlock**, **Color Mix**, **Melody Sort**, **Split Keyboard**,
-> **Elevators**, **Recipe Cipher** and **Radio Tune**. Each puzzle's folder has a README with its
-> rules. Accounts and stats (phase 7) and the open-source release (phase 8) are next.
+> **Status:** early development, through phase 6 of [the build plan](docs/PLAN.md) plus the
+> second batch of puzzles ([docs/PUZZLES_BATCH2.md](docs/PUZZLES_BATCH2.md)). Rooms, the lobby,
+> the full match loop (rounds, scoring, pause and rejoin, surrender) and every comms channel work:
+> voice, signals, recorded clips, late and jittered clips, rationed mic time, one-way alternating
+> voice, and fading ink. Eighteen puzzles:
+>
+> - **Batch 1:** Sliding Grid, Padlock, Color Mix, Melody Sort, Split Keyboard, Elevators, Recipe
+>   Cipher, Radio Tune.
+> - **Batch 2:** Ghost Ink, Split Hairs, Echo Claw, Color Sweep, Airtime, Walkie, Swap Stack, and
+>   three arena puzzles where the whole room shares one game: Pick Six, Bad Advice and Going Once.
+>
+> Each puzzle's folder has a README with its rules. Accounts and stats (phase 7) and the
+> open-source release (phase 8) are next.
 
 Voice is WebRTC between browsers; the server only relays signaling and decides who can hear whom.
 Players on different networks may need a TURN server: set `SPLIT_SIGNAL_ICE_SERVERS` to a JSON array

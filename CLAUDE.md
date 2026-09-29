@@ -6,8 +6,18 @@ Grid, WebRTC voice + Padlock + Color Mix, Melody Sort + Split Keyboard + Elevato
 clips + Radio Tune). Phase 7 (Google sign-in, stats) needs OAuth credentials from the owner; phase 8
 (release) needs a license and hosting decision. The plan calls for playtests after phases 3 and 5.
 
+Puzzle batch 2 ([docs/PUZZLES_BATCH2.md](docs/PUZZLES_BATCH2.md), B0-B9) is built on the `batch-2`
+branch: new comms rules, arena (shared-instance) mode, and ten puzzles. It asks for playtests after
+B2, B5 and B8.
+
 Clips: `onClip` (optional contract hook) routes each clip and computes per-recipient params on the
-server; the engine enforces length/cooldown and handles the 'repeat' signal.
+server; the engine enforces length/cooldown and handles the 'repeat' signal. Delayed, jittered and
+budgeted clips, alternating and timed voice, and the draw stream live in
+server/src/comms/controller.ts (one `CommsController` per round); puzzles read its state from
+`ctx.comms`.
+
+Arena puzzles (`instance: 'shared'`) run one runtime for the whole room; `score().teams` ranks them.
+`reveal()` views are sent after a round and shown under the scoreboard.
 
 Voice topology (server/src/comms/voice.ts): everyone in lobby/results, own team between rounds, the
 puzzle's rule while playing. The server relays `comms.rtc` only between current peers.
@@ -22,9 +32,10 @@ puzzle's rule while playing. The server relays `comms.rtc` only between current 
 
 - Server-authoritative. Clients render a per-player view and send actions; the server enforces comms
   rules. Never let the client decide who it can talk to.
-- Puzzle modules (`packages/puzzles/<id>/`) are pure: `init/view/apply/tick/onSignal/isSolved/score`.
-  No I/O, no timers, no `Math.random`/`Date.now` (lint-enforced; use `ctx.rng`). State is
-  immutable plain JSON. Adding a puzzle must never require touching lobby, networking, or engine.
+- Puzzle modules (`packages/puzzles/<id>/`) are pure: `init/view/apply/tick/onSignal/onClip/reveal/isSolved/score`.
+  No I/O (except reading the puzzle's own content files, server-side only, as Split Hairs does), no
+  timers, no `Math.random`/`Date.now` (lint-enforced; use `ctx.rng`). State is immutable plain
+  JSON. Adding a puzzle must never require touching lobby, networking, or engine.
 - `PuzzleSession` in `packages/shared/src/session.ts` is the single core used by both the server
   runtime and the test harness. Change semantics there, not in two places.
 - Room state goes behind `RoomStore` (`get/set/delete/list`); never read the room map directly.

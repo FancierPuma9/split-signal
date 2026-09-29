@@ -1,5 +1,5 @@
 import type { AccountStats, PersonalBest } from '@split-signal/shared';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { formatTime } from '../puzzle/useCountdown';
 
 function best(b: PersonalBest): string {
@@ -15,11 +15,14 @@ export function StatsDialog({
   name,
   stats,
   onClose,
+  onDelete,
 }: {
   name: string;
   stats: AccountStats | null;
   onClose: () => void;
+  onDelete: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -81,11 +84,26 @@ export function StatsDialog({
         )}
         <p className="small muted">
           Signing in keeps your Google account ID, your name and your match results on this server.
-          Nothing else.
+          Nothing else. <a href="/privacy.html">Privacy policy</a>
         </p>
         <button className="secondary" onClick={onClose}>
           Close
         </button>
+        {confirming ? (
+          <div className="delete-confirm">
+            <span>Delete your account and all your stats for good?</span>
+            <button className="danger" onClick={onDelete}>
+              Delete
+            </button>
+            <button className="link" onClick={() => setConfirming(false)}>
+              Keep it
+            </button>
+          </div>
+        ) : (
+          <button className="link delete-account" onClick={() => setConfirming(true)}>
+            Delete my account and stats
+          </button>
+        )}
       </div>
     </div>
   );

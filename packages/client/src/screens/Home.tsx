@@ -80,6 +80,11 @@ export function Home({ actions, connected }: { actions: GameActions; connected: 
           <p className="small muted">Room codes use consonants only.</p>
         )}
       </div>
+      <footer className="home-footer small muted">
+        <a href="https://github.com/FancierPuma9/split-signal">Open source on GitHub</a>
+        <span aria-hidden="true">·</span>
+        <a href="/privacy.html">Privacy</a>
+      </footer>
     </div>
   );
 }

@@ -58,6 +58,8 @@ export type ClientMessage =
   /** Sign back in on a new connection with a session token from auth.session. */
   | { type: 'auth.resume'; token: string }
   | { type: 'auth.signOut' }
+  /** Permanently delete the signed-in account, its sessions and its stats. */
+  | { type: 'account.delete' }
   /** Save a finished match's results (from results.unsaved) to the signed-in account. */
   | { type: 'results.claim'; claimToken: string }
   | { type: 'stats.get' };
@@ -283,6 +285,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         ? { type: 'results.claim', claimToken: data.claimToken }
         : null;
     case 'auth.signOut':
+    case 'account.delete':
     case 'stats.get':
     case 'room.leave':
     case 'lobby.start':

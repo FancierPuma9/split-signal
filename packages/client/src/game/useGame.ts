@@ -212,6 +212,8 @@ export function useGame() {
         send({ type: 'auth.signOut' });
       },
       loadStats: () => send({ type: 'stats.get' }),
+      /** Permanently deletes the signed-in account and its stats. */
+      deleteAccount: () => send({ type: 'account.delete' }),
       surrender: () => send({ type: 'match.surrender' }),
       playAgain: () => send({ type: 'match.playAgain' }),
       backToLobby: () => send({ type: 'match.backToLobby' }),

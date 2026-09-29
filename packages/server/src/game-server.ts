@@ -111,6 +111,7 @@ export class GameServer {
       message.type === 'auth.google' ||
       message.type === 'auth.resume' ||
       message.type === 'auth.signOut' ||
+      message.type === 'account.delete' ||
       message.type === 'results.claim' ||
       message.type === 'stats.get'
     ) {
@@ -386,7 +387,15 @@ export class GameServer {
     conn: Connection,
     message: Extract<
       ClientMessage,
-      { type: 'auth.google' | 'auth.resume' | 'auth.signOut' | 'results.claim' | 'stats.get' }
+      {
+        type:
+          | 'auth.google'
+          | 'auth.resume'
+          | 'auth.signOut'
+          | 'account.delete'
+          | 'results.claim'
+          | 'stats.get';
+      }
     >,
   ): void {
     const error = (text: string) => conn.send({ type: 'error', message: text });
@@ -424,6 +433,21 @@ export class GameServer {
         if (session) accounts.signOut(session.token);
         this.sessions.delete(conn);
         return conn.send({ type: 'auth.signedOut' });
+      case 'account.delete': {
+        if (!session) return error('Sign in first');
+        accounts.deleteAccount(session.user);
+        // Sign the account out everywhere it's open.
+        for (const [other, s] of [...this.sessions]) {
+          if (s.user.id !== session.user.id) continue;
+          this.sessions.delete(other);
+          other.send(
+            other === conn
+              ? { type: 'auth.signedOut', reason: 'Your account and stats were deleted' }
+              : { type: 'auth.signedOut' },
+          );
+        }
+        return;
+      }
       case 'results.claim':
         if (!session) return error('Sign in first');
         return accounts.claim(message.claimToken, session.user)

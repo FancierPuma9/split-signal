@@ -292,6 +292,32 @@ th {
   font-size: 0.8rem;
 }
 
+.delete-account {
+  justify-self: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.delete-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.home-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.home-footer a {
+  color: var(--muted);
+}
+
 .bests {
   width: 100%;
   border-collapse: collapse;

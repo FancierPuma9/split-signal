@@ -63,6 +63,10 @@ export function AccountMenu({ account, actions }: { account: AccountState; actio
           name={account.user.name}
           stats={account.stats}
           onClose={() => setShowStats(false)}
+          onDelete={() => {
+            setShowStats(false);
+            actions.deleteAccount();
+          }}
         />
       )}
     </div>

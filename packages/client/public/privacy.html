@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Privacy policy · Split Signal</title>
+    <style>
+      body {
+        margin: 0;
+        background: #101216;
+        color: #e8eaee;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        line-height: 1.6;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 4px;
+      }
+      h2 {
+        font-size: 1.15rem;
+        margin-top: 32px;
+      }
+      a {
+        color: #4cc9f0;
+      }
+      .muted {
+        color: #9aa1ad;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="/">← Split Signal</a></p>
+      <h1>Privacy policy</h1>
+      <p class="muted">Last updated September 29, 2026</p>
+
+      <p>
+        Split Signal is a browser party game. You can play without an account, and the game keeps as
+        little about you as it can. This page explains exactly what it handles.
+      </p>
+
+      <h2>Playing as a guest</h2>
+      <p>
+        When you create or join a room you give a display name. The server keeps it in memory, with
+        your team and your moves, only while the room exists; rooms are deleted a few minutes after
+        everyone leaves. Nothing about guests is written to a database. The server's logs may
+        briefly include display names and room codes.
+      </p>
+
+      <h2>Voice, clips and drawings</h2>
+      <p>
+        Voice chat connects your browser directly to the other players' browsers (WebRTC). The audio
+        is encrypted between browsers and does not pass through the game server. If your network
+        needs it, audio may be relayed through a TURN server run for this site, which cannot decrypt
+        it. To set up voice connections your browser contacts a public STUN server run by Google,
+        which sees your IP address.
+      </p>
+      <p>
+        Some puzzles use short recorded voice clips or drawings instead of live voice. These are
+        sent through the game server to the other players in your room and held in memory only until
+        they are delivered. They are never saved.
+      </p>
+
+      <h2>Signing in with Google (optional)</h2>
+      <p>
+        Signing in only keeps your stats: matches played and won, rounds won, and your best results
+        for each puzzle. When you sign in, Google tells the game your Google account ID and your
+        name, and the game stores those, your match results, and a sign-in session (kept as a secure
+        hash). It does not store your email address or anything else from your Google account. See
+        <a href="https://policies.google.com/privacy">Google's privacy policy</a> for how Google
+        handles sign-in.
+      </p>
+      <p>
+        If you play as a guest and then sign in within 30 minutes, the results of the match you just
+        finished are saved to your account. Otherwise they are forgotten.
+      </p>
+
+      <h2>Deleting your data</h2>
+      <p>
+        Signed-in players can delete their account at any time: open your name in the top bar,
+        choose <strong>Your stats</strong>, then <strong>Delete my account and stats</strong>. This
+        permanently removes your account, your sessions and your match results.
+      </p>
+
+      <h2>Your browser's storage</h2>
+      <p>
+        The game saves your display name, the rooms you are seated in (so you can get back in after
+        a reload) and, if you sign in, your session in your browser's local storage. It uses no
+        advertising or analytics cookies. Google's sign-in button, when shown, is provided by Google
+        and may use Google's own cookies.
+      </p>
+
+      <h2>Sharing</h2>
+      <p>
+        Your data is not sold or shared with anyone, and is only used to run the game. Other players
+        in your room see your display name, and hear or see whatever you send them in play.
+      </p>
+
+      <h2>Children</h2>
+      <p>Split Signal is not directed at children under 13.</p>
+
+      <h2>Changes and contact</h2>
+      <p>
+        If this policy changes, this page will be updated and the date above changed. Split Signal
+        is open source; questions can be asked on its
+        <a href="https://github.com/FancierPuma9/split-signal/issues">GitHub issue tracker</a>.
+      </p>
+    </main>
+  </body>
+</html>

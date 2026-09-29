@@ -142,6 +142,29 @@ describe('GameServer accounts', () => {
     expect(host.last('stats')?.stats.matchesPlayed).toBe(1);
   });
 
+  it('deletes an account and signs it out everywhere', async () => {
+    const { client } = setup();
+    const tab = client();
+    tab.send({ type: 'auth.google', credential: credential('g1', 'Ada') });
+    await settle();
+    const token = tab.last('auth.session')!.token;
+    const other = client();
+    other.send({ type: 'auth.resume', token });
+    const stranger = client();
+    stranger.send({ type: 'auth.google', credential: credential('g2', 'Bo') });
+    await settle();
+
+    tab.send({ type: 'account.delete' });
+    expect(tab.last('auth.signedOut')?.reason).toMatch(/deleted/);
+    expect(other.last('auth.signedOut')).toBeDefined();
+    expect(stranger.last('auth.signedOut')).toBeUndefined();
+    const again = client();
+    again.send({ type: 'auth.resume', token });
+    expect(again.last('auth.signedOut')).toBeDefined();
+    tab.send({ type: 'account.delete' });
+    expect(tab.last('error')?.message).toMatch(/Sign in/);
+  });
+
   it('forgets who was signed in on a connection once it closes', async () => {
     const { server, client } = setup();
     const tab = client();

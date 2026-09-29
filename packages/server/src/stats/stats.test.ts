@@ -178,6 +178,25 @@ describe('StatsDb', () => {
     ]);
   });
 
+  it('deletes an account with its sessions, results, and matches left empty', () => {
+    const db = new StatsDb(':memory:');
+    const ada = db.upsertUser({ sub: 'g1', name: 'Ada' });
+    const bo = db.upsertUser({ sub: 'g2', name: 'Bo' });
+    const record = match();
+    const shared = db.saveMatch(record);
+    db.savePlayer(shared, ada.id, record.players[0]!);
+    db.savePlayer(shared, bo.id, record.players[2]!);
+    db.savePlayer(db.saveMatch(record), ada.id, record.players[0]!);
+    const token = db.createSession(ada.id);
+
+    db.deleteUser(ada.id);
+    expect(db.sessionUser(token)).toBeNull();
+    expect(db.stats(ada.id)).toEqual({ matchesPlayed: 0, matchesWon: 0, roundsWon: 0, bests: [] });
+    expect(db.stats(bo.id).matchesPlayed).toBe(1);
+    // Signing in again starts a fresh account.
+    expect(db.upsertUser({ sub: 'g1', name: 'Ada' }).id).not.toBe(ada.id);
+  });
+
   it('starts empty for a new account', () => {
     const db = new StatsDb(':memory:');
     const user = db.upsertUser({ sub: 'g1', name: 'Ada' });

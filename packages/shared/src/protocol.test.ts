@@ -115,6 +115,7 @@ describe('parseClientMessage', () => {
     });
     expect(parse({ type: 'auth.signOut' })).toEqual({ type: 'auth.signOut' });
     expect(parse({ type: 'stats.get' })).toEqual({ type: 'stats.get' });
+    expect(parse({ type: 'account.delete' })).toEqual({ type: 'account.delete' });
     for (const bad of [
       { type: 'auth.google', credential: 'not a jwt' },
       { type: 'auth.google', credential: `${jwt}.${'x'.repeat(9000)}` },

@@ -146,6 +146,19 @@ export class StatsDb {
     this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token));
   }
 
+  /** Removes an account with its sessions and results, and matches nobody is left in. */
+  deleteUser(userId: string): void {
+    this.db.exec('BEGIN');
+    try {
+      this.db.prepare('DELETE FROM users WHERE id = ?').run(Number(userId));
+      this.db.exec('DELETE FROM matches WHERE id NOT IN (SELECT match_id FROM match_players)');
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
   pruneSessions(): void {
     this.db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(this.now());
   }

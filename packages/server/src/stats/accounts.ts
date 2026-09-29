@@ -67,6 +67,11 @@ export class AccountService {
     this.db.deleteSession(token);
   }
 
+  /** Permanently deletes an account, its sessions and its results. */
+  deleteAccount(user: AccountUser): void {
+    this.db.deleteUser(user.id);
+  }
+
   stats(user: AccountUser): AccountStats {
     return this.db.stats(user.id);
   }

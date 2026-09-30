@@ -22,6 +22,7 @@ import pressTheButton from './press-the-button/server';
 import pressTogether from './press-together/server';
 import radioTune from './radio-tune/server';
 import recipeCipher from './recipe-cipher/server';
+import scavenge from './scavenge/server';
 import slidingGrid from './sliding-grid/server';
 import splitHairs from './split-hairs/server';
 import splitKeyboard from './split-keyboard/server';
@@ -63,6 +64,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   yappinMaze,
   hotMic,
   earshot,
+  scavenge,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

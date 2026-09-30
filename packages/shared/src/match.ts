@@ -10,6 +10,8 @@ export interface TeamRoundResult {
   elapsedMs?: number;
   /** Compare puzzles that score in points (higher is better). */
   points?: number;
+  /** Breaks ties between equal points, before time (higher is better; not shown). */
+  tiebreak?: number;
 }
 
 export interface RoundSummary {

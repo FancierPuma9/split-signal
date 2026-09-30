@@ -92,6 +92,16 @@ describe('PausableClock', () => {
 });
 
 describe('resolveRound', () => {
+  it('breaks equal points with the tiebreak before time', () => {
+    expect(
+      resolveRound('race', [
+        { teamId: 'a', solved: false, points: 6, tiebreak: 2, elapsedMs: 100 },
+        { teamId: 'b', solved: false, points: 6, tiebreak: 5 },
+        { teamId: 'c', solved: false, points: 5, tiebreak: 9 },
+      ]),
+    ).toEqual({ outcome: 'won', winnerTeamId: 'b' });
+  });
+
   it('race: fastest solver wins', () => {
     expect(
       resolveRound('race', [

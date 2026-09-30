@@ -1,0 +1,119 @@
+.root {
+  display: grid;
+  gap: 12px;
+  width: min(680px, 100%);
+}
+
+.role,
+.note {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.note {
+  font-size: 0.85rem;
+}
+
+.tick {
+  margin: 0;
+  text-align: center;
+}
+
+.panel {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 10%);
+}
+
+.panel h4 {
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  width: min(360px, 100%);
+}
+
+.bin {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.part {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 3px;
+  border-radius: 10px;
+  background: #15171c;
+  border: 2px solid transparent;
+}
+
+button.part:disabled {
+  opacity: 0.7;
+}
+
+.picked {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgb(76 201 240 / 35%);
+}
+
+.got {
+  border-color: #3ddc84;
+}
+
+.missing {
+  opacity: 0.4;
+}
+
+.check {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  color: #3ddc84;
+  font-weight: 800;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+
+.actions button {
+  min-width: 140px;
+  min-height: 44px;
+}
+
+.trays {
+  display: grid;
+  gap: 6px;
+}
+
+.tray {
+  display: grid;
+  gap: 4px;
+  padding: 6px 10px;
+  border-left: 4px solid;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 3%);
+  font-size: 0.85rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}

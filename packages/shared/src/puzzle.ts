@@ -187,6 +187,8 @@ export interface TeamScore {
   elapsedMs?: number;
   /** Compare puzzles only: higher is better. When present it decides the round. */
   points?: number;
+  /** Breaks ties between equal points, before time (higher is better; not shown). */
+  tiebreak?: number;
 }
 
 /**

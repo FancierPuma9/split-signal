@@ -102,6 +102,7 @@ function teamResult(
     ...(score?.moves !== undefined ? { moves: score.moves } : {}),
     ...(score?.elapsedMs !== undefined ? { elapsedMs: score.elapsedMs } : {}),
     ...(score?.points !== undefined ? { points: score.points } : {}),
+    ...(score?.tiebreak !== undefined ? { tiebreak: score.tiebreak } : {}),
   };
 }
 

@@ -19,7 +19,8 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
   manifest,
 
   init({ rng, players }) {
-    const [listener, ...arrangers] = players;
+    // Jobs are dealt at random, on their own stream so the melody doesn't depend on them.
+    const [listener, ...arrangers] = rng.fork('roles').shuffle(players);
     if (!listener || arrangers.length === 0) throw new Error('needs a listener and an arranger');
     const pitches = rng.shuffle(SCALE).slice(0, NOTE_COUNT);
     const symbols = rng.shuffle(SYMBOLS);

@@ -34,8 +34,8 @@ import {
 export interface HiddenInfo<State> {
   /** What is hidden, used in failure messages ("the secret number"). */
   name: string;
-  /** Which players must not learn it. */
-  hiddenFrom: (player: PlayerInfo) => boolean;
+  /** Which players must not learn it (state is there for roles dealt at random). */
+  hiddenFrom: (player: PlayerInfo, state: State) => boolean;
   /** Return a copy of state with the hidden thing changed to some other value. */
   change: (state: State) => State;
   /** Optional: once this returns true the thing may be revealed (e.g. after the team submits). */
@@ -255,7 +255,7 @@ export class PuzzleDriver<State, View, Action> {
       }
 
       for (const hidden of this.hidden) {
-        if (!hidden.hiddenFrom(player) || hidden.until?.(state)) continue;
+        if (!hidden.hiddenFrom(player, state) || hidden.until?.(state)) continue;
         const changedState = hidden.change(state);
         if (deepEqual(changedState, state)) {
           throw new HarnessError(

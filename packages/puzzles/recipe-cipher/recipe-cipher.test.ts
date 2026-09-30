@@ -8,12 +8,16 @@ import type { Action, State, View } from './types';
 
 type Game = PuzzleDriver<State, View, Action>;
 
-const seatOf = (game: Game, id: string) => game.players.findIndex((p) => p.id === id);
+/** Which seat holds each job (they're dealt at random). */
+function jobs(game: Game) {
+  const seatOf = (id: string) => game.players.findIndex((p) => p.id === id);
+  const { glyphs, key, prep, cook } = game.state.roles;
+  return { glyphs: seatOf(glyphs), key: seatOf(key), prep: seatOf(prep), cook: seatOf(cook) };
+}
 
 /** Plays the recipe perfectly: prep each ingredient just before it's added. */
 function cook(game: Game) {
-  const prep = seatOf(game, game.state.roles.prep);
-  const cookSeat = seatOf(game, game.state.roles.cook);
+  const { prep, cook: cookSeat } = jobs(game);
   for (const step of game.state.steps) {
     if (step.kind === 'add') {
       game.advance(PREP_MS);
@@ -31,7 +35,7 @@ function cook(game: Game) {
 const hidden: HiddenInfo<State>[] = [
   {
     name: 'the decoding key',
-    hiddenFrom: (p) => p.seat === 0 || p.seat === 2,
+    hiddenFrom: (p, s) => p.id !== s.roles.key,
     change: (s) => ({
       ...s,
       letterOf: Object.fromEntries(
@@ -44,7 +48,7 @@ const hidden: HiddenInfo<State>[] = [
   },
   {
     name: 'the written recipe',
-    hiddenFrom: (p) => p.seat !== 0,
+    hiddenFrom: (p, s) => p.id !== s.roles.glyphs,
     change: (s) => ({ ...s, lines: s.lines.map((line) => [...line].reverse()) }),
   },
 ];
@@ -72,23 +76,36 @@ describe('glyphs and recipes', () => {
 describe('recipe cipher', () => {
   it('splits roles for two and three players', () => {
     const two = startPuzzle(puzzle, { players: 2, hidden: [hidden[0]!] });
-    expect(two.view(0).roles).toEqual(['glyphs', 'prep']);
-    expect(two.view(1).roles).toEqual(['key', 'cook']);
+    expect(two.view(jobs(two).glyphs).roles).toEqual(['glyphs', 'prep']);
+    expect(two.view(jobs(two).key).roles).toEqual(['key', 'cook']);
     const three = startPuzzle(puzzle, { players: 3, hidden });
-    expect(three.view(0).roles).toEqual(['glyphs']);
-    expect(three.view(1).roles).toEqual(['key', 'prep']);
-    expect(three.view(2).roles).toEqual(['cook']);
+    const seats = jobs(three);
+    expect(three.view(seats.glyphs).roles).toEqual(['glyphs']);
+    expect(three.view(seats.key).roles).toEqual(['key', 'prep']);
+    expect(three.view(seats.cook).roles).toEqual(['cook']);
+    expect(new Set([seats.glyphs, seats.key, seats.cook]).size).toBe(3);
+  });
+
+  it('deals the jobs at random, without changing the recipe', () => {
+    const readers = new Set<number>();
+    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+      const game = startPuzzle(puzzle, { players: 3, seed });
+      readers.add(jobs(game).glyphs);
+      expect(game.state.steps).toEqual(startPuzzle(puzzle, { players: 2, seed }).state.steps);
+    }
+    expect(readers.size).toBeGreaterThan(1);
   });
 
   it('writes the recipe so that the key decodes it', () => {
     const game = startPuzzle(puzzle, { players: 2 });
-    const { lines } = game.view(0);
-    const key = new Map(game.view(1).key!.map((k) => [k.glyph, k.letter]));
+    const seats = jobs(game);
+    const { lines } = game.view(seats.glyphs);
+    const key = new Map(game.view(seats.key).key!.map((k) => [k.glyph, k.letter]));
     const text = lines!.map((line) => line.map((g) => (g === ' ' ? ' ' : key.get(g))).join(''));
     expect(text.at(-1)).toBe('plate');
     expect(text).toContain('stir');
-    expect(game.view(0).key).toBeNull();
-    expect(game.view(1).lines).toBeNull();
+    expect(game.view(seats.glyphs).key).toBeNull();
+    expect(game.view(seats.key).lines).toBeNull();
   });
 
   it('is solved by following the recipe', () => {
@@ -100,29 +117,31 @@ describe('recipe cipher', () => {
 
   it('fills the kitchen with smoke on a wrong step, without losing progress', () => {
     const game = startPuzzle(puzzle, { players: 2 });
+    const { cook } = jobs(game);
     const first = game.state.steps[0]!;
     expect(first.kind).toBe('heat');
-    game.act(1, { type: 'stir' }); // wrong: should heat first
+    game.act(cook, { type: 'stir' }); // wrong: should heat first
     expect(game.state.mistakes).toBe(1);
     expect(game.state.progress).toBe(0);
-    expect(game.act(1, { type: 'stir' })).toMatchObject({
+    expect(game.act(cook, { type: 'stir' })).toMatchObject({
       ok: false,
       reason: expect.stringMatching(/smoke/),
     });
     game.advance(SMOKE_MS);
-    if (first.kind === 'heat') game.act(1, { type: 'heat', level: first.level });
+    if (first.kind === 'heat') game.act(cook, { type: 'heat', level: first.level });
     expect(game.state.progress).toBe(1);
   });
 
   it('burns a wrongly prepped ingredient', () => {
     const game = startPuzzle(puzzle, { players: 2 });
+    const { prep, cook } = jobs(game);
     const heat = game.state.steps[0]!;
-    if (heat.kind === 'heat') game.act(1, { type: 'heat', level: heat.level });
+    if (heat.kind === 'heat') game.act(cook, { type: 'heat', level: heat.level });
     const add = game.state.steps[1]!;
     if (add.kind !== 'add') throw new Error('expected an add step');
     const wrong = (INGREDIENTS[add.ingredient] ?? []).find((m) => m !== add.method)!;
-    game.act(0, { type: 'prep', ingredient: add.ingredient, method: wrong });
-    game.act(1, { type: 'add', itemId: game.state.tray[0]!.id });
+    game.act(prep, { type: 'prep', ingredient: add.ingredient, method: wrong });
+    game.act(cook, { type: 'add', itemId: game.state.tray[0]!.id });
     expect(game.state.tray).toHaveLength(0);
     expect(game.state.mistakes).toBe(1);
     expect(game.state.progress).toBe(1);
@@ -130,29 +149,31 @@ describe('recipe cipher', () => {
 
   it('limits prep speed and tray size', () => {
     const game = startPuzzle(puzzle, { players: 2 });
+    const { prep, cook } = jobs(game);
     const ingredient = game.state.pantry[0]!;
     const method = INGREDIENTS[ingredient]![0]!;
-    game.act(0, { type: 'prep', ingredient, method });
-    expect(game.act(0, { type: 'prep', ingredient, method })).toMatchObject({ ok: false });
+    game.act(prep, { type: 'prep', ingredient, method });
+    expect(game.act(prep, { type: 'prep', ingredient, method })).toMatchObject({ ok: false });
     for (let i = 1; i < TRAY_LIMIT; i++) {
       game.advance(PREP_MS);
-      game.act(0, { type: 'prep', ingredient, method });
+      game.act(prep, { type: 'prep', ingredient, method });
     }
     game.advance(PREP_MS);
-    expect(game.act(0, { type: 'prep', ingredient, method })).toMatchObject({
+    expect(game.act(prep, { type: 'prep', ingredient, method })).toMatchObject({
       reason: 'The tray is full',
     });
-    game.act(1, { type: 'discard', itemId: game.state.tray[0]!.id });
+    game.act(cook, { type: 'discard', itemId: game.state.tray[0]!.id });
     expect(game.state.tray).toHaveLength(TRAY_LIMIT - 1);
   });
 
   it('keeps each station to its role', () => {
     const game = startPuzzle(puzzle, { players: 2 });
+    const { prep, cook } = jobs(game);
     expect(
-      game.act(1, { type: 'prep', ingredient: game.state.pantry[0]!, method: 'chop' }),
+      game.act(cook, { type: 'prep', ingredient: game.state.pantry[0]!, method: 'chop' }),
     ).toMatchObject({
       ok: false,
     });
-    expect(game.act(0, { type: 'stir' })).toMatchObject({ ok: false });
+    expect(game.act(prep, { type: 'stir' })).toMatchObject({ ok: false });
   });
 });

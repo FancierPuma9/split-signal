@@ -8,17 +8,24 @@ type Game = PuzzleDriver<State, View, Action>;
 const hidden: HiddenInfo<State>[] = [
   {
     name: 'the target settings',
-    hiddenFrom: (p) => p.seat === 1,
+    hiddenFrom: (p, s) => p.id === s.receiver,
     change: (s) => ({ ...s, target: { ...s.target, band: (s.target.band + 1) % (KNOB_MAX + 1) } }),
   },
 ];
 
+/** Which seat got which job (they're dealt at random). */
+function jobs(game: Game) {
+  const seatOf = (id: string) => game.players.findIndex((p) => p.id === id);
+  return { sender: seatOf(game.state.sender), receiver: seatOf(game.state.receiver) };
+}
+
 function tune(game: Game) {
   const { target } = game.state;
-  game.act(1, { type: 'knob', control: 'band', value: target.band });
-  game.act(1, { type: 'knob', control: 'tuning', value: target.tuning });
-  game.act(1, { type: 'switch', control: 'filter', on: target.filter });
-  game.act(1, { type: 'switch', control: 'squelch', on: target.squelch });
+  const { receiver } = jobs(game);
+  game.act(receiver, { type: 'knob', control: 'band', value: target.band });
+  game.act(receiver, { type: 'knob', control: 'tuning', value: target.tuning });
+  game.act(receiver, { type: 'switch', control: 'filter', on: target.filter });
+  game.act(receiver, { type: 'switch', control: 'squelch', on: target.squelch });
 }
 
 const clipTo = (game: Game, from: number) => game.clip(from)!;
@@ -26,8 +33,23 @@ const clipTo = (game: Game, from: number) => game.clip(from)!;
 describe('radio tune', () => {
   it('shows the sender the target and the receiver only their panel', () => {
     const game = startPuzzle(puzzle, { players: 2, hidden });
-    expect(game.view(0)).toEqual({ role: 'sender', target: game.state.target, solved: false });
-    expect(game.view(1)).toEqual({ role: 'receiver', panel: game.state.panel, solved: false });
+    const { sender, receiver } = jobs(game);
+    expect(game.view(sender)).toEqual({ role: 'sender', target: game.state.target, solved: false });
+    expect(game.view(receiver)).toEqual({
+      role: 'receiver',
+      panel: game.state.panel,
+      solved: false,
+    });
+  });
+
+  it('deals the jobs at random', () => {
+    const senders = new Set<number>();
+    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+      const game = startPuzzle(puzzle, { players: 2, seed });
+      senders.add(jobs(game).sender);
+      expect(jobs(game).receiver).toBe(1 - jobs(game).sender);
+    }
+    expect(senders).toEqual(new Set([0, 1]));
   });
 
   it('starts well away from the target', () => {
@@ -58,13 +80,14 @@ describe('radio tune', () => {
 
   it('routes clips only from the sender to the receiver, with current distortion', () => {
     const game = startPuzzle(puzzle, { players: 2, hidden });
-    expect(clipTo(game, 1)).toMatchObject({ reject: expect.any(String) });
-    const before = clipTo(game, 0);
+    const { sender, receiver } = jobs(game);
+    expect(clipTo(game, receiver)).toMatchObject({ reject: expect.any(String) });
+    const before = clipTo(game, sender);
     if (!('deliveries' in before)) throw new Error('expected deliveries');
     expect(before.deliveries).toHaveLength(1);
-    expect(before.deliveries[0]!.to).toBe(game.player(1).id);
+    expect(before.deliveries[0]!.to).toBe(game.player(receiver).id);
     tune(game);
-    const after = clipTo(game, 0);
+    const after = clipTo(game, sender);
     if (!('deliveries' in after)) throw new Error('expected deliveries');
     expect(after.deliveries[0]!.params).toEqual({ noise: 0, chop: 0, pitch: 0, narrow: 0 });
   });
@@ -80,10 +103,15 @@ describe('radio tune', () => {
 
   it('only lets the receiver touch the panel, within range', () => {
     const game = startPuzzle(puzzle, { players: 2, hidden });
-    expect(game.act(0, { type: 'knob', control: 'band', value: 1 })).toMatchObject({ ok: false });
-    expect(game.act(1, { type: 'knob', control: 'band', value: 10 })).toMatchObject({ ok: false });
+    const { sender, receiver } = jobs(game);
+    expect(game.act(sender, { type: 'knob', control: 'band', value: 1 })).toMatchObject({
+      ok: false,
+    });
+    expect(game.act(receiver, { type: 'knob', control: 'band', value: 10 })).toMatchObject({
+      ok: false,
+    });
     expect(
-      game.act(1, { type: 'switch', control: 'filter', on: 'yes' as unknown as boolean }),
+      game.act(receiver, { type: 'switch', control: 'filter', on: 'yes' as unknown as boolean }),
     ).toMatchObject({
       ok: false,
     });

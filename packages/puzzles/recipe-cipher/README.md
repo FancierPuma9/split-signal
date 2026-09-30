@@ -3,8 +3,8 @@
 A recipe written in invented glyphs. One player holds the glyph instructions; another holds the
 glyph-to-letter key. They decode it by describing symbols to each other, then prep and cook.
 
-- **Roles:** 2 players: glyphs + prep station, and key + stove. 3 players: glyphs; key + prep
-  station; stove.
+- **Roles** (dealt at random each round): 2 players: glyphs + prep station, and key + stove.
+  3 players: glyphs; key + prep station; stove.
 - **The recipe:** three prep lines ("dice onion"), then eight cooking steps (heat, add, stir, heat,
   add, add, stir, plate in a generated order). One clock, no phase boundary: decode everything first
   or start cooking on a partial decode.

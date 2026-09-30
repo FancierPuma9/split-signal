@@ -40,17 +40,21 @@ describe('color math', () => {
 
 type Game = PuzzleDriver<State, View, Action>;
 
+const seatOf = (game: Game, id: string) => game.players.findIndex((p) => p.id === id);
+const mixers = (state: State) =>
+  Object.keys(state.sliders).filter((id) => id !== state.targetViewer);
+
 const hiddenFor = (players: number): HiddenInfo<State>[] => [
   {
     name: 'the target color',
-    hiddenFrom: (p) => p.seat !== 0,
+    hiddenFrom: (p, s) => p.id !== s.targetViewer,
     change: (state) => ({ ...state, target: { ...state.target, r: (state.target.r + 40) % 256 } }),
   },
   ...Array.from({ length: players - 1 }, (_, i) => ({
-    name: `seat ${i + 1}'s sliders`,
-    hiddenFrom: (p: { seat: number }) => p.seat === 0,
+    name: `mixer ${i + 1}'s sliders`,
+    hiddenFrom: (p: { id: string }, s: State) => p.id === s.targetViewer,
     change: (state: State) => {
-      const id = Object.keys(state.sliders)[i + 1] as string;
+      const id = mixers(state)[i] as string;
       const ch = state.controls[id]?.[0] ?? 'r';
       const s = state.sliders[id]!;
       return {
@@ -72,10 +76,20 @@ function matchTarget(game: Game) {
 }
 
 describe('color mix', () => {
-  it('shows the target to seat 0 only and the mix to everyone else', () => {
+  it('shows the target to one player only and the mix to everyone else', () => {
     const game = startPuzzle(puzzle, { players: 2, hidden: hiddenFor(2) });
-    expect(game.view(0)).toMatchObject({ role: 'target', swatch: game.state.target });
-    expect(game.view(1)).toMatchObject({ role: 'mix', swatch: mixOf(game.state) });
+    const viewer = seatOf(game, game.state.targetViewer);
+    expect(game.view(viewer)).toMatchObject({ role: 'target', swatch: game.state.target });
+    expect(game.view(1 - viewer)).toMatchObject({ role: 'mix', swatch: mixOf(game.state) });
+  });
+
+  it('deals the target to a random player', () => {
+    const viewers = new Set<number>();
+    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+      const game = startPuzzle(puzzle, { players: 3, seed });
+      viewers.add(seatOf(game, game.state.targetViewer));
+    }
+    expect(viewers.size).toBeGreaterThan(1);
   });
 
   it('starts far from the target, with a reachable target', () => {
@@ -90,9 +104,8 @@ describe('color mix', () => {
 
   it('splits one channel per player for three players', () => {
     const game = startPuzzle(puzzle, { players: 3, hidden: hiddenFor(3) });
-    expect(game.view(0).controls).toEqual(['r']);
-    expect(game.view(1).controls).toEqual(['g']);
-    expect(game.view(2).controls).toEqual(['b']);
+    const controls = [0, 1, 2].map((seat) => game.view(seat).controls).sort();
+    expect(controls).toEqual([['b'], ['g'], ['r']]);
     expect(game.state.max).toBe(255);
   });
 
@@ -125,8 +138,10 @@ describe('color mix', () => {
 
   it("rejects out-of-range values and other players' channels", () => {
     const game = startPuzzle(puzzle, { players: 3, hidden: hiddenFor(3) });
-    expect(game.act(0, { type: 'set', channel: 'g', value: 10 })).toMatchObject({ ok: false });
-    expect(game.act(0, { type: 'set', channel: 'r', value: 256 })).toMatchObject({ ok: false });
-    expect(game.act(0, { type: 'set', channel: 'r', value: 1.5 })).toMatchObject({ ok: false });
+    const mine = game.view(0).controls[0]!;
+    const other = (['r', 'g', 'b'] as const).find((ch) => ch !== mine)!;
+    expect(game.act(0, { type: 'set', channel: other, value: 10 })).toMatchObject({ ok: false });
+    expect(game.act(0, { type: 'set', channel: mine, value: 256 })).toMatchObject({ ok: false });
+    expect(game.act(0, { type: 'set', channel: mine, value: 1.5 })).toMatchObject({ ok: false });
   });
 });

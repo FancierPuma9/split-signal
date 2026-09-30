@@ -283,7 +283,9 @@ Set `instance: 'shared'` and the whole room plays one instance instead of one pe
   ranked by the win condition as above. The shell shows these live as the round goes, so only mark
   a team `solved` once it really is done.
 - `commsState` works the same, for every player in the room (Earshot's hearing crosses teams).
-- For per-team roles, derive them from seat and `roundIndex` so they rotate consistently.
+- For per-team roles, either derive them from seat and `roundIndex` so they rotate, or deal them
+  with `rng.fork('roles').shuffle(players)` (Radio Tune, Melody Sort, Color Mix, Recipe Cipher). A
+  fork keeps the rest of the puzzle's randomness unchanged.
 - A puzzle that needs three or more teams sets `teams.min = 3`; the lobby lists it with the reason
   when a room doesn't fit ("needs 3+ teams"). Rooms allow up to four teams.
 

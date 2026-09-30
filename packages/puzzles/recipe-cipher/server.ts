@@ -47,7 +47,13 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
       prepLockedUntil: 0,
       stoveLockedUntil: 0,
       mistakes: 0,
-      roles: rolesFor(players.map((p) => p.id)),
+      // Dealt at random, on their own stream so the recipe doesn't depend on them.
+      roles: rolesFor(
+        rng
+          .fork('roles')
+          .shuffle(players)
+          .map((p) => p.id),
+      ),
       solved: false,
     };
   },

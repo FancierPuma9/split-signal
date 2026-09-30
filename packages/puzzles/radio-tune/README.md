@@ -1,7 +1,7 @@
 # Radio Tune
 
-The Sender (seat 0) sees the correct settings for a radio panel. The Receiver (seat 1) has the
-panel. The Sender can only talk through short recorded clips, and the Receiver hears every clip
+The Sender sees the correct settings for a radio panel. The Receiver has the panel. Who gets which
+job is dealt at random each round. The Sender can only talk through short recorded clips, and the Receiver hears every clip
 distorted: the closer their panel gets, the clearer it sounds.
 
 - **Controls and layers:** each control drives its own distortion layer, so a careful ear can

@@ -29,7 +29,8 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
   manifest,
 
   init({ rng, players }) {
-    const [sender, receiver] = players;
+    // Jobs are dealt at random, on their own stream so the panel doesn't depend on them.
+    const [sender, receiver] = rng.fork('roles').shuffle(players);
     if (!sender || !receiver) throw new Error('needs a sender and a receiver');
     const target: Panel = {
       band: rng.int(0, KNOB_MAX),

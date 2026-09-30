@@ -29,7 +29,10 @@ function withMatch(state: State, nowMs: number): State {
 const puzzle: PuzzleServerModule<State, View, Action> = {
   manifest,
 
-  init({ rng, players }) {
+  init({ rng, players: seated }) {
+    // Jobs (who sees the target, who gets which slider) are dealt at random, on their own stream
+    // so the colors don't depend on them.
+    const players = rng.fork('roles').shuffle(seated);
     const split = players.length >= 3;
     const max = split ? 255 : 127;
     const controls: Record<string, Channel[]> = {};

@@ -1,6 +1,6 @@
 # Melody Sort
 
-The Listener (seat 0) hears a short melody of 6 notes. The Arranger has the notes as tiles marked
+The Listener (dealt at random each round) hears a short melody of 6 notes. The Arranger has the notes as tiles marked
 with abstract symbols and has to put them in order. Only the Listener ever hears anything: the
 target, and every time the Arranger plays their current order.
 

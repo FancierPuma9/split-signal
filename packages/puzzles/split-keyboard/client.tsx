@@ -21,7 +21,6 @@ export default function SplitKeyboard({
   me,
 }: PuzzleClientProps<View, Action>) {
   const mine = new Set(view.myKeys);
-  const next = view.phrase[view.typed];
 
   // Physical keyboard: any printable key goes to the server, which decides.
   useEffect(() => {
@@ -70,11 +69,11 @@ export default function SplitKeyboard({
               const i = word.start + j;
               const state =
                 i < view.typed ? styles.done : i === view.typed ? styles.next : styles.todo;
-              const yours = i === view.typed && mine.has(ch);
+              // Nothing says whose key is next: working that out is the puzzle.
               return (
                 <span
                   key={i}
-                  className={`${styles.char} ${state} ${yours ? styles.yours : ''} ${ch === ' ' && i >= view.typed ? styles.space : ''}`}
+                  className={`${styles.char} ${state} ${ch === ' ' && i >= view.typed ? styles.space : ''}`}
                 >
                   {ch === ' ' ? '·' : ch}
                 </span>
@@ -92,9 +91,7 @@ export default function SplitKeyboard({
           ? 'Done!'
           : shownNudge !== null
             ? 'Your teammate nudged you: it might be yours!'
-            : next !== undefined && mine.has(next)
-              ? "It's your key!"
-              : message}
+            : message}
       </p>
 
       <div className={styles.keyboard}>

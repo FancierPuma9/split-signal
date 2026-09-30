@@ -3,6 +3,7 @@ import airtime from './airtime/server';
 import badAdvice from './bad-advice/server';
 import colorMix from './color-mix/server';
 import colorSweep from './color-sweep/server';
+import dictionary from './dictionary/server';
 import echoClaw from './echo-claw/server';
 import elevators from './elevators/server';
 import ghostInk from './ghost-ink/server';
@@ -21,6 +22,7 @@ import slidingGrid from './sliding-grid/server';
 import splitHairs from './split-hairs/server';
 import splitKeyboard from './split-keyboard/server';
 import swapStack from './swap-stack/server';
+import telegraph from './telegraph/server';
 import walkie from './walkie/server';
 
 /**
@@ -49,6 +51,8 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   patchwork,
   passItOn,
   passItOnReversed,
+  telegraph,
+  dictionary,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

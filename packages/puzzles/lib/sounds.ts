@@ -1,7 +1,8 @@
-import { audioContext } from '../lib/audio';
+import { audioContext } from './audio';
 
-// Dictionary's twelve sounds, synthesized with Web Audio so there are no files to ship. Each is
-// short and unlike the others; the labels are what players see.
+// Twelve short sound effects, synthesized with Web Audio so there are no files to ship. Each is
+// unlike the others in both pitch and texture. Dictionary shows the labels to players; Melody
+// Sort uses six of them as its notes.
 
 type Recipe = (ctx: AudioContext, out: AudioNode, t: number) => void;
 
@@ -160,13 +161,18 @@ const RECIPES: Record<string, Recipe> = {
   },
 };
 
-/** Plays one of the sounds by its label (quietly, for the Sender's own echo). */
+/** Plays one of the sounds by its label (`volume` below 1 for a quiet echo). */
 export function playSound(name: string, volume = 1): void {
+  playSequence([name], 0, volume);
+}
+
+/** Plays sounds one after another, `gapMs` apart. Unknown labels leave a silent gap. */
+export function playSequence(names: readonly string[], gapMs: number, volume = 1): void {
   const ctx = audioContext();
-  const recipe = RECIPES[name];
-  if (!ctx || !recipe || ctx.state !== 'running') return;
+  if (!ctx || ctx.state !== 'running') return;
   const out = ctx.createGain();
   out.gain.value = volume;
   out.connect(ctx.destination);
-  recipe(ctx, out, ctx.currentTime + 0.01);
+  const start = ctx.currentTime + 0.05;
+  names.forEach((name, i) => RECIPES[name]?.(ctx, out, start + (i * gapMs) / 1000));
 }

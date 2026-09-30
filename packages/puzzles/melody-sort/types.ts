@@ -1,12 +1,19 @@
 /** Length of one note in playback, including the gap after it. Shared by server and client. */
-export const NOTE_MS = 450;
+export const NOTE_MS = 600;
+
+/**
+ * The notes: six sound effects from lib/sounds, as unlike each other as possible so the
+ * Listener can tell them apart and name them ("the boom, then the honk"). Every melody plays each
+ * one once. Indexes into this list are the only thing the server knows about sound.
+ */
+export const SOUNDS = ['BOOM', 'DING', 'BUZZ', 'CLAP', 'ZAP', 'HONK'] as const;
 
 export interface Tile {
   id: string;
-  /** Abstract symbol shown to arrangers, unrelated to pitch. */
+  /** Abstract symbol shown to arrangers, unrelated to the sound. */
   symbol: string;
-  /** MIDI note number. Never sent to arrangers. */
-  pitch: number;
+  /** Index into SOUNDS. Never sent to arrangers. */
+  sound: number;
   /** The arranger who can move this tile. */
   owner: string;
 }
@@ -30,18 +37,17 @@ export interface State {
 export type View =
   | {
       role: 'listener';
-      /** Pitches of the target melody, to synthesize on this device only. */
+      /** The target melody as sound indexes, to synthesize on this device only. */
       target: number[];
       /** Bumped each time the target is replayed; play it when this changes. */
       targetPlays: number;
-      maxTargetPlays: number;
-      /** The arranger's latest playback, as pitches. */
-      playback: { id: number; pitches: number[] } | null;
+      /** The arranger's latest playback, as sound indexes. */
+      playback: { id: number; sounds: number[] } | null;
       solved: boolean;
     }
   | {
       role: 'arranger';
-      /** The arrangement, as opaque tiles. No pitch information at all. */
+      /** The arrangement, as opaque tiles. No sound information at all. */
       slots: Array<{ id: string; symbol: string; mine: boolean }>;
       plays: number;
       playLockedUntil: number;

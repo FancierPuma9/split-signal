@@ -1,8 +1,8 @@
 import type { PuzzleClientProps } from '@split-signal/shared';
 import { useEffect, useRef, useState } from 'react';
 import styles from './client.module.css';
-import { playMelody } from './synth';
-import { NOTE_MS, type Action, type View } from './types';
+import { playSequence } from '../lib/sounds';
+import { NOTE_MS, SOUNDS, type Action, type View } from './types';
 
 type Props = PuzzleClientProps<View, Action>;
 type RoleProps<R extends View['role']> = Omit<Props, 'view'> & {
@@ -18,20 +18,23 @@ export default function MelodySort({ view, ...rest }: Props) {
 }
 
 /**
- * Plays `pitches` whenever `id` goes up. The first render only records the current id, so
+ * Plays `sounds` whenever `id` goes up. The first render only records the current id, so
  * rejoining mid-round doesn't replay something already heard. Returns which note is sounding.
  */
-function usePlayOnChange(id: number, pitches: readonly number[] | undefined): number | null {
+function usePlayOnChange(id: number, sounds: readonly number[] | undefined): number | null {
   const heard = useRef(id);
   const [active, setActive] = useState<number | null>(null);
   useEffect(() => {
-    if (id <= heard.current || !pitches) return;
+    if (id <= heard.current || !sounds) return;
     heard.current = id;
-    playMelody(pitches, NOTE_MS);
-    const timers = pitches.map((_, i) => setTimeout(() => setActive(i), i * NOTE_MS));
-    timers.push(setTimeout(() => setActive(null), pitches.length * NOTE_MS));
+    playSequence(
+      sounds.map((s) => SOUNDS[s] ?? ''),
+      NOTE_MS,
+    );
+    const timers = sounds.map((_, i) => setTimeout(() => setActive(i), i * NOTE_MS));
+    timers.push(setTimeout(() => setActive(null), sounds.length * NOTE_MS));
     return () => timers.forEach(clearTimeout);
-  }, [id, pitches]);
+  }, [id, sounds]);
   return active;
 }
 
@@ -51,21 +54,21 @@ function Wave({ count, active }: { count: number; active: number | null }) {
 
 function Listener({ view, send }: RoleProps<'listener'>) {
   const targetNote = usePlayOnChange(view.targetPlays, view.target);
-  const playbackNote = usePlayOnChange(view.playback?.id ?? 0, view.playback?.pitches);
-  const left = view.maxTargetPlays - view.targetPlays;
+  const playbackNote = usePlayOnChange(view.playback?.id ?? 0, view.playback?.sounds);
 
   return (
     <div className={styles.root}>
       <p className={styles.note}>
         <strong>You are the Listener.</strong> Only you can hear anything. Describe the melody so
-        your Arranger can put the notes in order.
+        your Arranger can put the sounds in order.
       </p>
       <button
         className={styles.big}
-        disabled={left <= 0 || view.solved}
+        // Not while something is already playing, so sounds don't pile up.
+        disabled={view.solved || targetNote !== null || playbackNote !== null}
         onClick={() => send({ type: 'replay' })}
       >
-        {view.targetPlays === 0 ? 'Play the melody' : 'Replay the melody'} ({left} left)
+        {view.targetPlays === 0 ? 'Play the melody' : 'Play it again'}
       </button>
       <Wave count={view.target.length} active={targetNote} />
       <p className={styles.note}>
@@ -98,7 +101,7 @@ function Arranger({ view, send, timer }: RoleProps<'arranger'>) {
   return (
     <div className={styles.root}>
       <p className={styles.note}>
-        <strong>You are the Arranger.</strong> You can't hear anything. Put the notes in order from
+        <strong>You are the Arranger.</strong> You can't hear anything. Put the sounds in order from
         your Listener's description; they'll hear it when you press Play.
         {shared && ' You can only move tiles with a purple border.'}
       </p>

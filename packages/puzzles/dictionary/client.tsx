@@ -1,7 +1,7 @@
 import type { PuzzleClientProps } from '@split-signal/shared';
 import { useEffect, useRef, useState } from 'react';
 import styles from './client.module.css';
-import { playSound } from './sounds';
+import { playSound } from '../lib/sounds';
 import type {
   Action,
   Controls,

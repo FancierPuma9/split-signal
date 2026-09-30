@@ -1,15 +1,12 @@
 import type { PuzzleServerModule } from '@split-signal/shared';
 import { manifest } from './manifest';
-import { NOTE_MS, type Action, type State, type Tile, type View } from './types';
+import { NOTE_MS, SOUNDS, type Action, type State, type Tile, type View } from './types';
 
-export const NOTE_COUNT = 6;
-export const MAX_TARGET_PLAYS = 6;
+export const NOTE_COUNT = SOUNDS.length;
 /** The arranger can't play again until the previous playback has finished. */
 export const PLAYBACK_MS = NOTE_COUNT * NOTE_MS + 400;
 
-/** Two octaves of C major, as MIDI notes. */
-const SCALE = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76];
-/** Abstract and hard to name, so arrangers can't reason from music theory. */
+/** Abstract and hard to name, so arrangers can't guess which sound goes with which. */
 const SYMBOLS = ['◆', '●', '▲', '■', '✚', '★', '◗', '⬟'];
 
 const sameOrder = (a: readonly string[], b: readonly string[]) =>
@@ -22,12 +19,12 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
     // Jobs are dealt at random, on their own stream so the melody doesn't depend on them.
     const [listener, ...arrangers] = rng.fork('roles').shuffle(players);
     if (!listener || arrangers.length === 0) throw new Error('needs a listener and an arranger');
-    const pitches = rng.shuffle(SCALE).slice(0, NOTE_COUNT);
+    const sounds = rng.shuffle(SOUNDS.map((_, i) => i));
     const symbols = rng.shuffle(SYMBOLS);
-    const tiles: Tile[] = pitches.map((pitch, i) => ({
+    const tiles: Tile[] = sounds.map((sound, i) => ({
       id: `n${i}`,
       symbol: symbols[i] ?? '?',
-      pitch,
+      sound,
       owner: arrangers[i % arrangers.length]?.id ?? '',
     }));
     // The melody is the notes in the order they were drawn; the slots start scrambled.
@@ -49,16 +46,15 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
 
   view(state, playerId) {
     const byId = new Map(state.tiles.map((t) => [t.id, t]));
-    const pitchOf = (id: string) => byId.get(id)?.pitch ?? 0;
+    const soundOf = (id: string) => byId.get(id)?.sound ?? 0;
     if (playerId === state.listener) {
       return {
         role: 'listener',
-        target: state.answer.map(pitchOf),
+        target: state.answer.map(soundOf),
         targetPlays: state.targetPlays,
-        maxTargetPlays: MAX_TARGET_PLAYS,
         playback: state.lastPlay && {
           id: state.lastPlay.id,
-          pitches: state.lastPlay.tileIds.map(pitchOf),
+          sounds: state.lastPlay.tileIds.map(soundOf),
         },
         solved: state.solved,
       };
@@ -80,7 +76,7 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
     switch (action?.type) {
       case 'replay':
         if (!isListener) return { reject: 'Only the Listener can hear the melody' };
-        if (state.targetPlays >= MAX_TARGET_PLAYS) return { reject: 'No replays left' };
+        // As often as they like.
         return { state: { ...state, targetPlays: state.targetPlays + 1 } };
 
       case 'swap': {

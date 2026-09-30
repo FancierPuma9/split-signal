@@ -12,8 +12,8 @@ team invented early are still in force later.
 { type: 'voice-oneway', scope: 'team' }]`. `commsState` gives the Sender `send: false`;
   `onSignal` refuses sounds that aren't unlocked yet and anything from the Receiver, so a modified
   client can't use the whole vocabulary early.
-- **Sounds:** all twelve are synthesized with Web Audio (`sounds.ts`). The Receiver's log shows
-  labels too, and any entry can be replayed.
+- **Sounds:** all twelve are synthesized with Web Audio (`lib/sounds.ts`, shared with Melody
+  Sort). The Receiver's log shows labels too, and any entry can be replayed.
 - **Resolution:** a correct submit clears the stage; a wrong one locks the Receiver for 5 s.
 - **Win:** `compare` on stages cleared, ties to whoever cleared their last stage first.
 - **Roles:** the Sender alternates with the round. The Sender sees the Receiver's controls live.

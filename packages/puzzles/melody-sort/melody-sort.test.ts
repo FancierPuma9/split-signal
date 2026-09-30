@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { startPuzzle, type HiddenInfo, type PuzzleDriver } from '../harness';
-import puzzle, { MAX_TARGET_PLAYS, NOTE_COUNT, PLAYBACK_MS } from './server';
+import puzzle, { NOTE_COUNT, PLAYBACK_MS } from './server';
 import type { Action, State, View } from './types';
 
-// Arrangers are deaf: shifting every pitch must not change their view at all.
+// Arrangers are deaf: swapping every sound for another must not change their view at all.
 const hidden: HiddenInfo<State>[] = [
   {
-    name: 'every pitch',
+    name: 'every sound',
     hiddenFrom: (p, s) => p.id !== s.listener,
     change: (state) => ({
       ...state,
-      tiles: state.tiles.map((t) => ({ ...t, pitch: t.pitch + 1 })),
+      tiles: state.tiles.map((t) => ({ ...t, sound: (t.sound + 1) % NOTE_COUNT })),
     }),
   },
 ];
@@ -33,7 +33,7 @@ function arrange(game: Game, seat = jobs(game).arranger) {
 }
 
 describe('melody sort', () => {
-  it('gives the listener pitches and the arranger only symbols', () => {
+  it('gives the listener sounds and the arranger only symbols', () => {
     const game = startPuzzle(puzzle, { players: 2, hidden });
     const listener = game.view(jobs(game).listener);
     const arranger = game.view(jobs(game).arranger);
@@ -42,13 +42,13 @@ describe('melody sort', () => {
     if (listener.role !== 'listener' || arranger.role !== 'arranger') return;
     expect(listener.target).toHaveLength(NOTE_COUNT);
     expect(arranger.slots).toHaveLength(NOTE_COUNT);
-    expect(JSON.stringify(arranger)).not.toMatch(/pitch|target/);
+    expect(JSON.stringify(arranger)).not.toMatch(/sound|target/);
   });
 
   it('starts scrambled with distinct notes', () => {
     const game = startPuzzle(puzzle, { players: 2 });
     expect(game.state.slots).not.toEqual(game.state.answer);
-    expect(new Set(game.state.tiles.map((t) => t.pitch)).size).toBe(NOTE_COUNT);
+    expect(new Set(game.state.tiles.map((t) => t.sound)).size).toBe(NOTE_COUNT);
   });
 
   it('is solved when the correct arrangement is played', () => {
@@ -66,17 +66,19 @@ describe('melody sort', () => {
     const listener = game.view(seats.listener);
     if (listener.role !== 'listener') throw new Error('expected listener');
     expect(listener.playback?.id).toBe(1);
-    expect(listener.playback?.pitches).toHaveLength(NOTE_COUNT);
+    expect(listener.playback?.sounds).toHaveLength(NOTE_COUNT);
     expect(game.act(seats.arranger, { type: 'play' })).toMatchObject({ ok: false });
     game.advance(PLAYBACK_MS);
     expect(game.act(seats.arranger, { type: 'play' })).toMatchObject({ ok: true });
   });
 
-  it('limits target replays', () => {
+  it('lets the listener replay the melody as often as they like', () => {
     const game = startPuzzle(puzzle, { players: 2, hidden });
     const { listener } = jobs(game);
-    for (let i = 0; i < MAX_TARGET_PLAYS; i++) game.act(listener, { type: 'replay' });
-    expect(game.act(listener, { type: 'replay' })).toMatchObject({ ok: false });
+    for (let i = 0; i < 25; i++) {
+      expect(game.act(listener, { type: 'replay' })).toMatchObject({ ok: true });
+    }
+    expect(game.view(listener)).toMatchObject({ targetPlays: 25 });
   });
 
   it('keeps roles apart', () => {
@@ -93,9 +95,9 @@ describe('melody sort', () => {
     for (const seed of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
       const game = startPuzzle(puzzle, { players: 3, seed });
       listeners.add(jobs(game).listener);
-      const pitches = game.state.tiles.map((t) => t.pitch);
+      const sounds = game.state.tiles.map((t) => t.sound);
       const duo = startPuzzle(puzzle, { players: 2, seed });
-      expect(duo.state.tiles.map((t) => t.pitch)).toEqual(pitches);
+      expect(duo.state.tiles.map((t) => t.sound)).toEqual(sounds);
     }
     expect(listeners.size).toBeGreaterThan(1);
   });

@@ -2,7 +2,7 @@ import type { PuzzleClientProps } from '@split-signal/shared';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import styles from './client.module.css';
 import { toCss } from './color';
-import type { Action, Channel, View } from './types';
+import { CHANNELS, type Action, type Channel, type View } from './types';
 
 const CHANNEL_INFO: Record<Channel, { name: string; color: string }> = {
   r: { name: 'Red', color: '#ff5a5f' },
@@ -10,10 +10,20 @@ const CHANNEL_INFO: Record<Channel, { name: string; color: string }> = {
   b: { name: 'Blue', color: '#4c9aff' },
 };
 
+/** The colors this player doesn't have, as words ("green and blue"), or '' if none. */
+function others(mine: readonly Channel[]): string {
+  const names = CHANNELS.filter((ch) => !mine.includes(ch)).map((ch) =>
+    CHANNEL_INFO[ch].name.toLowerCase(),
+  );
+  return names.length > 1
+    ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+    : (names[0] ?? '');
+}
+
 /** Minimum gap between slider updates sent while dragging. */
 const SEND_EVERY_MS = 60;
 
-export default function ColorMix({ view, send, timer }: PuzzleClientProps<View, Action>) {
+export default function ColorMix({ view, send, timer, team }: PuzzleClientProps<View, Action>) {
   // Local values keep dragging smooth; the server's values win whenever we're not dragging.
   const [dragging, setDragging] = useState<Partial<Record<Channel, number>>>({});
   // Throttle: send the first change right away, then at most one update per SEND_EVERY_MS,
@@ -75,6 +85,11 @@ export default function ColorMix({ view, send, timer }: PuzzleClientProps<View, 
         role="img"
         aria-label={view.role === 'target' ? 'Target color' : 'Current mix'}
       />
+
+      <p className={styles.label}>
+        {others(view.controls) &&
+          `${team.players.length > 2 ? 'Your teammates have' : 'Your teammate has'} ${others(view.controls)}.`}
+      </p>
 
       <div className={styles.sliders}>
         {view.controls.map((channel) => {

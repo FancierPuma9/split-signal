@@ -9,6 +9,17 @@ export const TOLERANCE = 5;
 export const HOLD_MS = 1500;
 /** How far the starting mix must be from the target. */
 const MIN_START_DISTANCE = 25;
+/** Top of every slider. Each channel belongs to exactly one player. */
+const MAX = 255;
+
+/**
+ * Deals red, green and blue out between the players: one each for three, and one for one
+ * player and two for the other when there are two.
+ */
+export function dealChannels(players: number, channels: readonly Channel[]): Channel[][] {
+  const [a, b, c] = channels as [Channel, Channel, Channel];
+  return players >= 3 ? [[a], [b], [c]] : [[a], [b, c]];
+}
 
 const zero = (): Rgb => ({ r: 0, g: 0, b: 0 });
 
@@ -30,41 +41,35 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
   manifest,
 
   init({ rng, players: seated }) {
-    // Jobs (who sees the target, who gets which slider) are dealt at random, on their own stream
-    // so the colors don't depend on them.
-    const players = rng.fork('roles').shuffle(seated);
-    const split = players.length >= 3;
-    const max = split ? 255 : 127;
+    if (seated.length < 2) throw new Error('Color Mix needs 2 players');
+    // Jobs (who sees the target, who gets which colors) are dealt at random, on their own stream
+    // so the target color doesn't depend on them.
+    const roles = rng.fork('roles');
+    const players = roles.shuffle(seated);
+    const dealt = dealChannels(players.length, roles.shuffle(CHANNELS));
     const controls: Record<string, Channel[]> = {};
     const sliders: Record<string, Rgb> = {};
     players.forEach((p, i) => {
-      const mine = split ? [CHANNELS[i % 3] as Channel] : [...CHANNELS];
+      const mine = dealt[i] ?? [];
       controls[p.id] = mine;
       sliders[p.id] = zero();
-      for (const ch of mine) sliders[p.id]![ch] = Math.round(max / 2);
+      for (const ch of mine) sliders[p.id]![ch] = Math.round(MAX / 2);
     });
 
-    // The target is a sum of settings the players could reach, so it's always solvable.
+    // Every channel has an owner with the full range, so any color is reachable.
     const start = mixOf({ sliders });
     let target = start;
     for (let attempt = 0; attempt < 50; attempt++) {
-      const hidden: Record<string, Rgb> = {};
-      for (const p of players) {
-        hidden[p.id] = zero();
-        for (const ch of controls[p.id] ?? []) hidden[p.id]![ch] = rng.int(0, max);
-      }
-      target = mixOf({ sliders: hidden });
+      target = { r: rng.int(0, MAX), g: rng.int(0, MAX), b: rng.int(0, MAX) };
       if (colorDistance(target, start) >= MIN_START_DISTANCE) break;
     }
 
-    const [first] = players;
-    if (!first) throw new Error('needs players');
     return {
       target,
       sliders,
       controls,
-      max,
-      targetViewer: first.id,
+      max: MAX,
+      targetViewer: roles.pick(players).id,
       matchSince: null,
       solved: false,
     };

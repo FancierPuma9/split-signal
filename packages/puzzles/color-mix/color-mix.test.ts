@@ -65,14 +65,16 @@ const hiddenFor = (players: number): HiddenInfo<State>[] => [
   })),
 ];
 
-/** Sets both players' sliders so the mix equals the target exactly (two-player layout). */
+/** Sets every player's sliders to the target (each channel has one owner). */
 function matchTarget(game: Game) {
-  const { target, max } = game.state;
-  for (const ch of ['r', 'g', 'b'] as const) {
-    const first = Math.min(max, target[ch]);
-    game.act(0, { type: 'set', channel: ch, value: first });
-    game.act(1, { type: 'set', channel: ch, value: target[ch] - first });
-  }
+  setAll(game, (ch) => game.state.target[ch]);
+}
+
+function setAll(game: Game, value: (ch: 'r' | 'g' | 'b') => number) {
+  game.players.forEach((_, seat) => {
+    for (const ch of game.view(seat).controls)
+      game.act(seat, { type: 'set', channel: ch, value: value(ch) });
+  });
 }
 
 describe('color mix', () => {
@@ -92,14 +94,24 @@ describe('color mix', () => {
     expect(viewers.size).toBeGreaterThan(1);
   });
 
-  it('starts far from the target, with a reachable target', () => {
+  it('starts far from the target', () => {
     for (const seed of ['a', 'b', 'c', 'd']) {
       const game = startPuzzle(puzzle, { players: 2, seed });
       expect(colorDistance(mixOf(game.state), game.state.target)).toBeGreaterThan(TOLERANCE);
-      for (const ch of ['r', 'g', 'b'] as const) {
-        expect(game.state.target[ch]).toBeLessThanOrEqual(254);
-      }
     }
+  });
+
+  it('gives one player one color and the other two, dealt at random', () => {
+    const solos = new Set<string>();
+    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+      const game = startPuzzle(puzzle, { players: 2, seed });
+      const controls = [game.view(0).controls, game.view(1).controls];
+      expect(controls.map((c) => c.length).sort()).toEqual([1, 2]);
+      expect(controls.flat().sort()).toEqual(['b', 'g', 'r']);
+      solos.add(controls.find((c) => c.length === 1)![0]!);
+      expect(game.state.max).toBe(255);
+    }
+    expect(solos.size).toBeGreaterThan(1);
   });
 
   it('splits one channel per player for three players', () => {
@@ -126,10 +138,7 @@ describe('color mix', () => {
     game.advance(1000);
     // A fixed nudge isn't enough: CIEDE2000 barely notices, say, less red in a vivid blue. Pull
     // everything toward black instead, which is always far off.
-    for (const seat of [0, 1]) {
-      for (const ch of ['r', 'g', 'b'] as const)
-        game.act(seat, { type: 'set', channel: ch, value: 0 });
-    }
+    setAll(game, () => 0);
     expect(colorDistance(mixOf(game.state), game.state.target)).toBeGreaterThan(TOLERANCE);
     expect(game.state.matchSince).toBeNull();
     game.advance(HOLD_MS);

@@ -1,11 +1,16 @@
 import type { PuzzleClientProps } from '@split-signal/shared';
 import { useCallback, useEffect, useRef, type CSSProperties } from 'react';
 import styles from './client.module.css';
-import { DELAY_MS } from './manifest';
 import { GRAB_RADIUS, TOY_RADIUS } from './physics';
 import type { Action, Point, View } from './types';
 
 const at = (p: Point): CSSProperties => ({ left: `${p.x * 100}%`, top: `${p.y * 100}%` });
+
+/** Grid squares for calling positions: columns A-F, rows 1-6 (about one grab ring each). */
+const COLUMNS = [...'ABCDEF'];
+const SQUARES = Array.from({ length: COLUMNS.length }, (_, row) =>
+  COLUMNS.map((column) => `${column}${row + 1}`),
+).flat();
 
 type Dir = 'up' | 'down' | 'left' | 'right';
 const KEYS: Record<string, Dir> = {
@@ -24,13 +29,12 @@ const KEYS: Record<string, Dir> = {
 };
 
 export default function EchoClaw({ view, send }: PuzzleClientProps<View, Action>) {
-  const delay = DELAY_MS / 1000;
   return (
     <div className={styles.root}>
       <p className={styles.hint}>
         {view.role === 'spotter'
-          ? `You can see the toy. Everything you say arrives ${delay}s late: tell them where it will be.`
-          : `You can't see the toy. Hold the arrows to move, then drop. Your Spotter's words arrive ${delay}s late.`}
+          ? 'You can see the toy. Talk your Operator onto it: call out squares like "C4".'
+          : "You can't see the toy. Listen to your Spotter, hold the arrows to move, then drop."}
         {view.role !== 'spotter' && (
           <span className={styles.keys}> (Keyboard: arrow keys or WASD, Space to drop.)</span>
         )}
@@ -46,6 +50,11 @@ export default function EchoClaw({ view, send }: PuzzleClientProps<View, Action>
           } as CSSProperties
         }
       >
+        <div className={styles.grid} aria-hidden="true">
+          {SQUARES.map((square) => (
+            <span key={square}>{square}</span>
+          ))}
+        </div>
         {view.role === 'spotter' && (
           <div key={view.grabs} className={styles.toy} style={at(view.toy)} aria-label="Toy">
             🧸

@@ -13,6 +13,7 @@
   --team-red: #e5484d;
   --team-blue: #0090ff;
   --team-green: #30a46c;
+  --team-gold: #f5b83d;
   --radius: 12px;
   color-scheme: dark;
   font-family:
@@ -130,6 +131,9 @@ th {
 }
 .team-green {
   --team: var(--team-green);
+}
+.team-gold {
+  --team: var(--team-gold);
 }
 
 .dot {
@@ -521,6 +525,15 @@ th {
   text-align: center;
 }
 
+.excluded ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.excluded summary {
+  cursor: pointer;
+}
+
 .lobby-actions {
   display: flex;
   align-items: center;
@@ -741,6 +754,47 @@ th {
   color: #fff;
 }
 
+.talk {
+  position: relative;
+}
+
+/* The clip length cap, running down while recording. */
+.record-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  pointer-events: none;
+  --record-left: 100%;
+  background: conic-gradient(#fff var(--record-left), transparent 0);
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  padding: 3px;
+  animation: record-ring var(--record-seconds, 5s) linear forwards;
+}
+
+@property --record-left {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 100%;
+}
+
+@keyframes record-ring {
+  to {
+    --record-left: 0%;
+  }
+}
+
+.sends {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.sends strong {
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
 .clip-hearing {
   padding: 4px 12px;
   border-radius: 999px;
@@ -792,6 +846,30 @@ th {
   border-radius: var(--radius);
   font-weight: 700;
   text-align: center;
+}
+
+.comms-banner.loudness {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.loudness-meter {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.loudness-meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--good), var(--warn), var(--danger));
+  transition: width 0.1s linear;
 }
 
 .comms-banner.live {
@@ -891,6 +969,56 @@ th {
   border-color: var(--warn);
   color: var(--text);
   font-weight: 500;
+}
+
+/* /dev/vad */
+.vad-lab {
+  display: grid;
+  gap: 14px;
+  max-width: 640px;
+}
+
+.vad-meter {
+  position: relative;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.vad-meter span {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+}
+
+.vad-meter span.loud {
+  background: var(--good);
+}
+
+.vad-meter i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--warn);
+}
+
+.vad-slider {
+  display: grid;
+  gap: 4px;
+}
+
+.vad-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.vad-list li span {
+  margin-right: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Phones */

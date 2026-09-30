@@ -1,4 +1,4 @@
-import type { AnyPuzzleServerModule, Rng } from '@split-signal/shared';
+import { LOBBY_LIMITS, type AnyPuzzleServerModule, type Rng } from '@split-signal/shared';
 
 const fits = (n: number, range: { min: number; max: number }) => n >= range.min && n <= range.max;
 
@@ -13,6 +13,37 @@ export function eligiblePuzzles(
       fits(teamSizes.length, manifest.teams) &&
       teamSizes.every((size) => fits(size, manifest.playersPerTeam)),
   );
+}
+
+/** "3 teams", "2-3 teams", or "3+ teams" when the range reaches the lobby's limit. */
+const span = (range: { min: number; max: number }, noun: string, limit: number) =>
+  range.min === range.max
+    ? `${range.min} ${noun}`
+    : range.max >= limit
+      ? `${range.min}+ ${noun}`
+      : `${range.min}-${range.max} ${noun}`;
+
+/** Puzzles this team setup rules out, each with the reason (for the lobby). */
+export function excludedPuzzles(
+  catalog: readonly AnyPuzzleServerModule[],
+  teamSizes: readonly number[],
+): Array<{ name: string; reason: string }> {
+  if (teamSizes.length === 0) return [];
+  const out: Array<{ name: string; reason: string }> = [];
+  for (const { manifest } of catalog) {
+    if (!fits(teamSizes.length, manifest.teams)) {
+      const teams = span(manifest.teams, 'teams', LOBBY_LIMITS.maxTeams);
+      out.push({ name: manifest.name, reason: `needs ${teams}` });
+    } else if (!teamSizes.every((size) => fits(size, manifest.playersPerTeam))) {
+      const size = span(
+        manifest.playersPerTeam,
+        'players per team',
+        LOBBY_LIMITS.maxPlayersPerTeam,
+      );
+      out.push({ name: manifest.name, reason: `needs ${size}` });
+    }
+  }
+  return out;
 }
 
 /**

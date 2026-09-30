@@ -179,7 +179,11 @@ export function startBlockers(room: Room, eligiblePuzzles: number): string[] {
   return blockers;
 }
 
-export function toRoomView(room: Room, eligiblePuzzles: number): RoomView {
+export function toRoomView(
+  room: Room,
+  eligiblePuzzles: number,
+  excludedPuzzles: Array<{ name: string; reason: string }> = [],
+): RoomView {
   return {
     code: room.code,
     hostId: room.hostId,
@@ -189,6 +193,7 @@ export function toRoomView(room: Room, eligiblePuzzles: number): RoomView {
     teams: room.teams.map((t) => ({ id: t.id, name: t.name, seats: [...t.seats] })),
     settings: { ...room.settings },
     eligiblePuzzles,
+    excludedPuzzles,
     startBlockers: startBlockers(room, eligiblePuzzles),
   };
 }

@@ -1,4 +1,5 @@
-import { audioContext, decodeClip, ensureAudio } from '@split-signal/puzzles/audio';
+import { playClip, type Playback } from '@split-signal/puzzles/audio';
+import { RecordButton } from '@split-signal/puzzles/record-button';
 import type { ClipDelivery, CommsRule, CommsState } from '@split-signal/shared';
 import { useEffect, useRef } from 'react';
 
@@ -20,7 +21,7 @@ const secs = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 
 /**
  * Push-to-talk for clip rules: hold the button (or V) to record, release to send. Shows mic
- * budgets for budget-clips and clips in flight for delayed-clips.
+ * budgets (time and sends) for budget-clips and clips in flight for delayed-clips.
  */
 export function ClipBar({
   rule,
@@ -32,15 +33,21 @@ export function ClipBar({
   onRecord,
   onStop,
 }: ClipBarProps) {
-  const budgetMs = rule.type === 'budget-clips' ? rule.budgetSeconds * 1000 : null;
-  const mine = comms.budgets?.[meId];
+  const budgetMs =
+    rule.type === 'budget-clips' && rule.budgetSeconds !== undefined
+      ? rule.budgetSeconds * 1000
+      : null;
+  const teamBudget = rule.type === 'budget-clips' && rule.budgetScope === 'team';
+  const mine = comms.budgets?.[teamBudget ? 'team' : meId];
   const outOfTime = budgetMs !== null && mine !== undefined && mine <= 0;
+  const outOfSends = comms.sends !== undefined && comms.sends.left <= 0;
+  const blocked = outOfTime || outOfSends;
 
   // Hold V to talk, unless typing somewhere.
   const held = useRef(false);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== 'v' || e.repeat || held.current || outOfTime) return;
+      if (e.key.toLowerCase() !== 'v' || e.repeat || held.current || blocked) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       held.current = true;
       onRecord();
@@ -56,33 +63,34 @@ export function ClipBar({
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
     };
-  }, [onRecord, onStop, outOfTime]);
+  }, [onRecord, onStop, blocked]);
 
   return (
     <div className="clip-bar">
-      <button
-        className={`talk ${recording ? 'talking' : ''}`}
-        disabled={outOfTime}
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          onRecord();
-        }}
-        onPointerUp={onStop}
-        onPointerCancel={onStop}
-        onLostPointerCapture={onStop}
-        // A long press on a phone would otherwise open the context menu and cancel the hold.
-        onContextMenu={(e) => e.preventDefault()}
+      <RecordButton
+        recording={recording}
+        disabled={blocked}
+        maxSeconds={rule.maxSeconds}
+        onRecord={onRecord}
+        onStop={onStop}
       >
-        {outOfTime ? (
+        {outOfSends ? (
+          'Out of sends'
+        ) : outOfTime ? (
           'Out of mic time'
-        ) : recording ? (
-          '● Recording… release to send'
         ) : (
           <>
             🎙 Hold to talk<span className="key-hint"> (or V)</span>
           </>
         )}
-      </button>
+      </RecordButton>
+
+      {comms.sends && (
+        <span className="sends" aria-label="Sends left">
+          <strong>{comms.sends.left}</strong> of {comms.sends.total}{' '}
+          {comms.sends.scope === 'team' ? 'team sends' : 'sends'} left · {rule.maxSeconds}s each
+        </span>
+      )}
 
       {hearing && (
         <span className="clip-hearing" role="status">
@@ -103,7 +111,7 @@ export function ClipBar({
         <ul className="budgets" aria-label="Mic time left">
           {Object.entries(comms.budgets).map(([id, left]) => (
             <li key={id}>
-              <span>{id === meId ? 'You' : nameOf(id)}</span>
+              <span>{id === 'team' ? 'Team' : id === meId ? 'You' : nameOf(id)}</span>
               <span className="budget-track">
                 <span className="budget-fill" style={{ width: `${(left / budgetMs) * 100}%` }} />
               </span>
@@ -131,7 +139,7 @@ export function ClipAutoPlayer({
   onHearing?: (from: string | null) => void;
 }) {
   const heard = useRef(clips.at(-1)?.id ?? 0);
-  const playing = useRef(new Map<AudioBufferSourceNode, string>());
+  const playing = useRef(new Map<Playback, string>());
   const ended = useRef(false);
 
   // Stop everything when the round (and this component) ends.
@@ -140,7 +148,7 @@ export function ClipAutoPlayer({
     ended.current = false;
     return () => {
       ended.current = true;
-      for (const source of current.keys()) source.stop();
+      for (const playback of current.keys()) playback.stop();
       current.clear();
     };
   }, []);
@@ -152,22 +160,15 @@ export function ClipAutoPlayer({
     const current = playing.current;
     const report = () => onHearing?.([...current.values()].at(-1) ?? null);
     const play = async (clip: ClipDelivery) => {
-      // Still locked (no tap yet on a phone): the "tap to turn on sound" prompt covers it.
-      if (!(await ensureAudio())) return;
-      const buffer = await decodeClip(clip.data);
-      const ctx = audioContext();
-      if (!ctx || ended.current) return;
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(ctx.destination);
-      source.onended = () => {
-        current.delete(source);
-        report();
-      };
-      current.set(source, clip.from);
+      // Null while sound is still locked (no tap yet on a phone): the sound prompt covers it.
+      const playback = await playClip(clip);
+      if (!playback) return;
+      if (ended.current) return playback.stop();
+      current.set(playback, clip.from);
       report();
-      const playMs = (clip.params as { playMs?: unknown } | null)?.playMs;
-      source.start(0, 0, typeof playMs === 'number' ? playMs / 1000 : undefined);
+      await playback.done;
+      current.delete(playback);
+      report();
     };
     for (const clip of fresh) {
       play(clip).catch((error: unknown) => {

@@ -1,11 +1,14 @@
-import type {
-  ClipRouting,
-  CommsState,
-  Context,
-  PlayerInfo,
-  PuzzleScore,
-  PuzzleServerModule,
-  TeamRoster,
+import {
+  isSignalReject,
+  type ClipRouting,
+  type CommsState,
+  type Context,
+  type PlayerCommsGate,
+  type PlayerInfo,
+  type PuzzleAsset,
+  type PuzzleScore,
+  type PuzzleServerModule,
+  type TeamRoster,
 } from './puzzle';
 import { createRng, type Rng } from './rng';
 
@@ -105,12 +108,36 @@ export class PuzzleSession<State = unknown, View = unknown, Action = unknown> {
     }
   }
 
-  /** Calls the module's onSignal, if it has one. Returns whether state changed. */
-  signal(playerId: string, signal: string, to?: string): boolean {
-    if (!this.module.onSignal || !this.hasPlayer(playerId) || this.solved) return false;
+  /**
+   * Calls the module's onSignal, if it has one. A refusal means the signal must not be relayed
+   * either.
+   */
+  signal(playerId: string, signal: string, to?: string): ActionOutcome {
+    if (!this.hasPlayer(playerId)) return { ok: false, reason: 'You are not on this team' };
+    if (!this.module.onSignal || this.solved) return { ok: true, changed: false };
     const before = this.current;
-    this.current = this.module.onSignal(before, playerId, signal, this.context(), to);
-    return this.current !== before;
+    const result = this.module.onSignal(before, playerId, signal, this.context(), to);
+    if (isSignalReject(result)) return { ok: false, reason: result.reject };
+    this.current = result;
+    return { ok: true, changed: result !== before };
+  }
+
+  /** The module's voice overrides for one player ({} if it has no commsState). */
+  commsState(playerId: string): PlayerCommsGate {
+    return this.module.commsState?.(this.current, playerId, this.context()) ?? {};
+  }
+
+  /**
+   * The assets one player should have, minus the ids in `have` (thunks resolved only for new
+   * ids). Empty if the module has no assets().
+   */
+  newAssets(playerId: string, have: ReadonlySet<string>): Record<string, PuzzleAsset> {
+    const all = this.module.assets?.(this.current, playerId, this.context()) ?? {};
+    const fresh: Record<string, PuzzleAsset> = {};
+    for (const [id, asset] of Object.entries(all)) {
+      if (!have.has(id)) fresh[id] = typeof asset === 'function' ? asset() : asset;
+    }
+    return fresh;
   }
 
   /** Asks the module where a clip from this player goes; null if it has no onClip. */

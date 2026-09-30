@@ -1,4 +1,4 @@
-import { forgetMedia, playWhenAllowed } from '@split-signal/puzzles/audio';
+import { audioContext, forgetMedia, playWhenAllowed } from '@split-signal/puzzles/audio';
 import type { IceServerConfig, RtcPayload, VoicePeer } from '@split-signal/shared';
 
 export type MicState = 'off' | 'requesting' | 'on' | 'muted' | 'blocked' | 'unsupported';
@@ -18,7 +18,15 @@ interface Peer {
   send: boolean;
   /** Whether we play this peer's audio. */
   hear: boolean;
+  /** Volume the server asked for (e.g. by distance), if it asked. */
+  gain: number | undefined;
+  /** Their audio once it arrives. */
+  stream: MediaStream | null;
+  /** Web Audio route used once a gain is asked for (media elements can't set volume on iOS). */
+  graph: { source: MediaStreamAudioSourceNode; level: GainNode } | null;
 }
+
+export type RemoteStreamListener = (peerId: string, stream: MediaStream | null) => void;
 
 /**
  * Peer-to-peer voice, driven entirely by the server: it opens connections to exactly the peers in
@@ -38,6 +46,24 @@ export class VoiceManager {
   private stream: MediaStream | null = null;
   private mic: MicState = 'off';
   private snapshotCache: VoiceSnapshot = { mic: 'off', peers: [] };
+  private readonly streamListeners = new Set<RemoteStreamListener>();
+
+  /**
+   * Hears about each peer's incoming audio as it arrives (and null when the peer goes), e.g. to
+   * buffer what teammates say. Called at once for streams already here.
+   */
+  onRemoteStream(listener: RemoteStreamListener): () => void {
+    this.streamListeners.add(listener);
+    for (const peer of this.peers.values()) if (peer.stream) listener(peer.id, peer.stream);
+    return () => this.streamListeners.delete(listener);
+  }
+
+  /** The volume we currently play a peer at (0 when we can't hear them). */
+  volumeOf(peerId: string): number {
+    const peer = this.peers.get(peerId);
+    if (!peer?.hear) return 0;
+    return peer.gain ?? 1;
+  }
 
   /** Our player id in the room, which decides who makes the offer. */
   setSelf(playerId: string | null): void {
@@ -114,11 +140,12 @@ export class VoiceManager {
       const hear = link.hear !== false;
       const peer = this.peers.get(id);
       if (!peer) {
-        this.openPeer(id, link.epoch, send, hear);
+        this.openPeer(id, link.epoch, send, hear, link.gain);
         continue;
       }
       peer.hear = hear;
-      peer.audio.muted = !hear;
+      peer.gain = link.gain;
+      this.applyOutput(peer);
       if (peer.send !== send) {
         peer.send = send;
         void this.attachTrack(peer);
@@ -158,20 +185,41 @@ export class VoiceManager {
     this.emit();
   }
 
-  private openPeer(id: string, epoch: number, send: boolean, hear: boolean): void {
+  private openPeer(
+    id: string,
+    epoch: number,
+    send: boolean,
+    hear: boolean,
+    gain: number | undefined,
+  ): void {
     const pc = new RTCPeerConnection({ iceServers: this.iceServers });
     const audio = document.createElement('audio');
     audio.autoplay = true;
     audio.hidden = true;
     audio.muted = !hear;
     document.body.append(audio);
-    const peer: Peer = { id, epoch, pc, audio, pendingIce: [], send, hear };
+    const peer: Peer = {
+      id,
+      epoch,
+      pc,
+      audio,
+      pendingIce: [],
+      send,
+      hear,
+      gain: gain,
+      stream: null,
+      graph: null,
+    };
     this.peers.set(id, peer);
 
     pc.ontrack = (event) => {
-      audio.srcObject = event.streams[0] ?? new MediaStream([event.track]);
+      const stream = event.streams[0] ?? new MediaStream([event.track]);
+      peer.stream = stream;
+      audio.srcObject = stream;
       // Refused before a tap on some phones (e.g. after a reload); retried on the next tap.
       playWhenAllowed(audio);
+      this.applyOutput(peer);
+      for (const listener of this.streamListeners) listener(id, stream);
     };
     pc.onicecandidate = ({ candidate }) => {
       if (!candidate) return;
@@ -228,6 +276,36 @@ export class VoiceManager {
     peer.audio.srcObject = null;
     peer.audio.remove();
     forgetMedia(peer.audio);
+    peer.graph?.source.disconnect();
+    peer.graph?.level.disconnect();
+    if (peer.stream) for (const listener of this.streamListeners) listener(id, null);
+  }
+
+  /**
+   * Plays a peer at the right volume. Without a gain the media element plays it directly; once
+   * the server asks for a gain the audio goes through Web Audio instead (the element stays
+   * attached but muted, which Chrome needs to keep the stream flowing).
+   */
+  private applyOutput(peer: Peer): void {
+    if (peer.gain === undefined && !peer.graph) {
+      peer.audio.muted = !peer.hear;
+      return;
+    }
+    const ctx = audioContext();
+    if (!ctx || !peer.stream) {
+      peer.audio.muted = !peer.hear;
+      return;
+    }
+    if (!peer.graph) {
+      const source = ctx.createMediaStreamSource(peer.stream);
+      const level = ctx.createGain();
+      level.gain.value = 0;
+      source.connect(level).connect(ctx.destination);
+      peer.graph = { source, level };
+    }
+    peer.audio.muted = true;
+    const target = peer.hear ? (peer.gain ?? 1) : 0;
+    peer.graph.level.gain.setTargetAtTime(target, ctx.currentTime, 0.05);
   }
 
   private setMic(mic: MicState): void {

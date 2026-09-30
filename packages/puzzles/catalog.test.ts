@@ -1,4 +1,4 @@
-import { validateManifest } from '@split-signal/shared';
+import { findRule, validateManifest } from '@split-signal/shared';
 import { describe, expect, it } from 'vitest';
 import { clientPuzzleIds } from './client';
 import { devPuzzles, findPuzzle, puzzles } from './index';
@@ -19,9 +19,12 @@ describe('puzzle catalog', () => {
     expect([...clientPuzzleIds].sort()).toEqual(registered);
   });
 
-  it('gives every clips puzzle an onClip hook', () => {
+  it('gives every clips puzzle an onClip hook, unless its clips go round a ring', () => {
     for (const p of all) {
-      if (p.manifest.comms.type === 'clips') expect(p.onClip, p.manifest.id).toBeTypeOf('function');
+      const clips = findRule(p.manifest.comms, 'clips');
+      if (clips && clips.direction !== 'ring') {
+        expect(p.onClip, p.manifest.id).toBeTypeOf('function');
+      }
     }
   });
 

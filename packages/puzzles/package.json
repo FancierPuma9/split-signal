@@ -8,6 +8,7 @@
     ".": "./index.ts",
     "./client": "./client.ts",
     "./audio": "./lib/audio.ts",
+    "./record-button": "./lib/RecordButton.tsx",
     "./harness": "./harness/index.ts"
   },
   "scripts": {

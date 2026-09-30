@@ -6,7 +6,7 @@ import {
 } from '@split-signal/shared';
 import { describe, expect, it } from 'vitest';
 import { generateRoomCode } from '../rooms/room-codes';
-import { eligiblePuzzles, pickPuzzles } from './catalog';
+import { eligiblePuzzles, excludedPuzzles, pickPuzzles } from './catalog';
 import { PausableClock } from './clock';
 import { resolveRound } from './resolution';
 import { onePointPerRound, rankByScore } from './scoring';
@@ -26,6 +26,27 @@ function fakePuzzle(id: string, teams: [number, number], players: [number, numbe
 }
 
 describe('catalog', () => {
+  it('explains why puzzles are left out', () => {
+    const make = (name: string, teams: [number, number], sizes: [number, number]) =>
+      ({
+        manifest: {
+          name,
+          teams: { min: teams[0], max: teams[1] },
+          playersPerTeam: { min: sizes[0], max: sizes[1] },
+        },
+      }) as unknown as AnyPuzzleServerModule;
+    const catalog = [
+      make('Scavenge', [3, 4], [2, 2]),
+      make('Trio', [1, 3], [3, 3]),
+      make('Duo', [1, 3], [2, 4]),
+    ];
+    expect(excludedPuzzles(catalog, [2, 2])).toEqual([
+      { name: 'Scavenge', reason: 'needs 3+ teams' },
+      { name: 'Trio', reason: 'needs 3 players per team' },
+    ]);
+    expect(excludedPuzzles(catalog, [])).toEqual([]);
+  });
+
   const duo = fakePuzzle('duo', [1, 3], [2, 2]);
   const flexible = fakePuzzle('flexible', [2, 3], [2, 4]);
   const solo = fakePuzzle('solo', [1, 1], [1, 4]);

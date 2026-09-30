@@ -1,3 +1,5 @@
+import { createRng, transformPcm, type ClipTransform } from '@split-signal/shared';
+
 // One Web Audio context for the whole client, unlocked by the player's taps.
 //
 // Phones only let a page start making sound inside a user gesture: iOS Safari keeps an
@@ -105,4 +107,82 @@ export async function decodeClip(data: string): Promise<AudioBuffer> {
   const ctx = audioContext();
   if (!ctx) throw new Error('No Web Audio');
   return ctx.decodeAudioData(base64ToArrayBuffer(data));
+}
+
+/** Something playing through the shared context. */
+export interface Playback {
+  /** Resolves when it finishes or is stopped. */
+  done: Promise<void>;
+  stop(): void;
+}
+
+/** Plays mono PCM through the shared context (e.g. a replayed utterance). Null while locked. */
+export function playPcm(pcm: Float32Array, sampleRate: number, gain = 1): Playback | null {
+  const ctx = audioContext();
+  if (!ctx || ctx.state !== 'running' || pcm.length === 0) return null;
+  const buffer = ctx.createBuffer(1, pcm.length, sampleRate);
+  buffer.copyToChannel(pcm as Float32Array<ArrayBuffer>, 0);
+  return startBuffer(ctx, buffer, gain);
+}
+
+function startBuffer(
+  ctx: AudioContext,
+  buffer: AudioBuffer,
+  gain: number,
+  maxMs?: number,
+): Playback {
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  const level = ctx.createGain();
+  level.gain.value = gain;
+  source.connect(level).connect(ctx.destination);
+  const done = new Promise<void>((resolve) => {
+    source.onended = () => resolve();
+  });
+  source.start(0, 0, maxMs !== undefined ? maxMs / 1000 : undefined);
+  return {
+    done,
+    stop: () => {
+      try {
+        source.stop();
+      } catch {
+        // Already stopped.
+      }
+    },
+  };
+}
+
+/**
+ * Plays a delivered clip the way the server asked: scrambled with its seeded transform (clip
+ * rules with transform) and cut off at playMs (budgets and hard caps). Resolves to null while
+ * sound is locked; rejects if this device can't decode the clip.
+ */
+export async function playClip(
+  clip: { data: string; params: unknown },
+  gain = 1,
+): Promise<Playback | null> {
+  if (!(await ensureAudio())) return null;
+  const decoded = await decodeClip(clip.data);
+  const ctx = audioContext();
+  if (!ctx) return null;
+  const params = (clip.params ?? {}) as {
+    playMs?: unknown;
+    transform?: ClipTransform;
+    transformSeed?: unknown;
+  };
+  let buffer = decoded;
+  if (params.transform) {
+    const mono = new Float32Array(decoded.length);
+    for (let c = 0; c < decoded.numberOfChannels; c++) {
+      const channel = decoded.getChannelData(c);
+      for (let i = 0; i < mono.length; i++)
+        mono[i] = (mono[i] ?? 0) + (channel[i] ?? 0) / decoded.numberOfChannels;
+    }
+    const seed = typeof params.transformSeed === 'string' ? params.transformSeed : 'clip';
+    const scrambled = transformPcm(mono, decoded.sampleRate, params.transform, createRng(seed));
+    buffer = ctx.createBuffer(1, scrambled.length, decoded.sampleRate);
+    buffer.copyToChannel(scrambled as Float32Array<ArrayBuffer>, 0);
+  }
+  const maxMs = typeof params.playMs === 'number' ? params.playMs : undefined;
+  return startBuffer(ctx, buffer, gain, maxMs);
 }

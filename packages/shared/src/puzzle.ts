@@ -1,4 +1,4 @@
-import { validateComms, type CommsRule } from './comms';
+import { validateComms, type CommsSpec } from './comms';
 import type { Rng } from './rng';
 
 export interface PlayerInfo {
@@ -40,7 +40,13 @@ export interface PuzzleManifest {
    */
   goal?: string;
   timeLimitSeconds: number;
-  comms: CommsRule;
+  /** One comms rule, or several applied together (e.g. signals plus one-way voice). */
+  comms: CommsSpec;
+  /**
+   * One line on how players communicate, shown instead of the description generated from comms
+   * (for rules whose effect the puzzle shapes, e.g. with commsState).
+   */
+  commsLabel?: string;
   /**
    * Race puzzles only: after the first team solves, other teams get this long to finish too, and
    * the fastest solve wins. Defaults to 2000.
@@ -90,7 +96,54 @@ export interface CommsState {
   budgets?: Record<string, number>;
   /** Clip rules: this player's clips that haven't been delivered yet. */
   pendingDeliveries?: number;
+  /** clips with direction 'ring': who this player's clips go to, and who theirs come from. */
+  ring?: { next: string; prev: string };
+  /** budget-clips with budgetSends: sends left in this player's pool (their own, or the team's). */
+  sends?: { left: number; total: number; scope: 'player' | 'team' };
 }
+
+/**
+ * Per-player comms overrides a puzzle returns from commsState(). Everything defaults to open; the
+ * server enforces the result on top of the manifest's voice rule.
+ */
+export interface PlayerCommsGate {
+  /** May this player's mic transmit right now. */
+  send?: boolean;
+  /** May this player hear anything right now. */
+  receive?: boolean;
+  /**
+   * Per-source overrides: whether this player can hear each listed player, and a volume hint
+   * (0-1) their client applies. Unlisted players are audible at full volume.
+   */
+  peers?: Record<string, { audible: boolean; gain?: number }>;
+  /**
+   * voice-replay: ask this player's client to replay something `from` said between two round
+   * times (ms). A new id triggers a replay; the client answers __replayMissed if it had nothing.
+   */
+  replay?: ReplayRequest;
+}
+
+export interface ReplayRequest {
+  id: number;
+  from: string;
+  windowStartMs: number;
+  windowEndMs: number;
+}
+
+/** A binary file (e.g. audio) sent to a player alongside their view. data is base64. */
+export interface PuzzleAsset {
+  mime: string;
+  data: string;
+}
+
+/**
+ * Actions the client shell sends on its own (never the puzzle's UI). Puzzles that don't use them
+ * can ignore them: returning the same state accepts them silently.
+ *   __micLevel: the player's mic loudness, about ten times a second, for voice with reportLevel.
+ *   __replayMissed: a voice-replay request found nothing to replay in its window.
+ */
+export type ShellAction =
+  { type: '__micLevel'; db: number } | { type: '__replayMissed'; id: number };
 
 export interface Context {
   teamId: string;
@@ -108,6 +161,19 @@ export interface Context {
 }
 
 export type ApplyResult<State> = { state: State } | { reject: string };
+
+/** onSignal's result: the new state, or a refusal (the signal is then neither applied nor relayed). */
+export type SignalResult<State> = State | { reject: string };
+
+/** Whether an onSignal result is a refusal. States must not be a lone { reject } object. */
+export function isSignalReject(result: unknown): result is { reject: string } {
+  return (
+    typeof result === 'object' &&
+    result !== null &&
+    typeof (result as { reject?: unknown }).reject === 'string' &&
+    Object.keys(result).length === 1
+  );
+}
 
 export interface TeamScore {
   /** Shared instances: whether this team finished (race puzzles). */
@@ -161,10 +227,35 @@ export interface PuzzleServerModule<State, View, Action> {
   tick?(state: State, nowMs: number, ctx: Context): State;
 
   /**
-   * Optional. Called when a player sends a discrete signal. `to` is set for signals aimed at one
-   * player (shared instances).
+   * Optional. Called when a player sends a discrete signal, before it's relayed. `to` is set for
+   * signals aimed at one player (shared instances). Return { reject } to refuse it: it's then
+   * neither applied nor relayed (e.g. a sound that isn't unlocked yet).
    */
-  onSignal?(state: State, fromPlayerId: string, signal: string, ctx: Context, to?: string): State;
+  onSignal?(
+    state: State,
+    fromPlayerId: string,
+    signal: string,
+    ctx: Context,
+    to?: string,
+  ): SignalResult<State>;
+
+  /**
+   * Optional. Per-player voice overrides (see PlayerCommsGate): who may talk, who may hear, and
+   * how loud each source is. Called after every state change; the engine sends only changes.
+   */
+  commsState?(state: State, playerId: string, ctx: Context): PlayerCommsGate;
+
+  /**
+   * Optional. Binary files a player needs that are too big for their view (e.g. an audio clip
+   * built for them), keyed by a stable id. Each id is sent to a player once per round, so its data
+   * must never change. Called after every state change: return a function for data that's costly
+   * to build, and it's only called for ids the player doesn't have yet.
+   */
+  assets?(
+    state: State,
+    playerId: string,
+    ctx: Context,
+  ): Record<string, PuzzleAsset | (() => PuzzleAsset)>;
 
   /**
    * Where a clip goes and with what parameters. Required for the 'clips' rule; optional for
@@ -237,6 +328,13 @@ export interface PuzzleClientProps<View, Action> {
   };
   /** Engine-managed comms state (who is live, mic budgets, voice countdown, clips in flight). */
   comms: CommsState & { receivedAt: number };
+  /** Files the puzzle's assets() sent this player this round, by id. */
+  assets: Record<string, PuzzleAsset>;
+  /**
+   * Your own mic loudness in dBFS, about ten times a second (voice with reportLevel only; null
+   * while the mic is off).
+   */
+  micLevel?: number | null;
   timer: { remainingMs: number; totalMs: number };
   me: PlayerInfo;
   team: TeamInfo;

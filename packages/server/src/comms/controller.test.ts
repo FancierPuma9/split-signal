@@ -1,4 +1,4 @@
-import type { ClipRouting, CommsRule, ServerMessage } from '@split-signal/shared';
+import type { ClipRouting, CommsRule, CommsSpec, ServerMessage } from '@split-signal/shared';
 import { describe, expect, it } from 'vitest';
 import { inbox } from '../test/fixtures';
 import { CommsController } from './controller';
@@ -21,20 +21,22 @@ const teams = [
 ];
 
 function setup(
-  rule: CommsRule,
+  rule: CommsSpec,
   extra: {
     routeClip?: (teamId: string, from: string) => ClipRouting | null;
     canDraw?: (teamId: string, id: string) => boolean;
+    teams?: typeof teams;
   } = {},
 ) {
   let now = 1000;
-  const boxes = new Map(['r1', 'r2', 'b1', 'b2'].map((id) => [id, inbox()]));
+  const roster = extra.teams ?? teams;
+  const boxes = new Map(roster.flatMap((t) => t.players).map((p) => [p.id, inbox()]));
   const changes: string[][] = [];
   const controller = new CommsController({
-    rule,
+    comms: rule,
     seed: 'seed',
     puzzleId: 'test',
-    teams,
+    teams: roster,
     now: () => now,
     send: (id: string, m: ServerMessage) => boxes.get(id)?.send(m),
     routeClip: extra.routeClip ?? (() => null),
@@ -195,5 +197,98 @@ describe('CommsController: draw stream', () => {
     const { controller, box } = setup({ type: 'draw', fadeMs: 1000, from: 'any' });
     for (let i = 0; i < 60; i++) controller.handleDraw('r1', batch);
     expect(box('r2').all('comms.draw').length).toBeLessThanOrEqual(25);
+  });
+});
+
+const trio = [
+  {
+    id: 'red',
+    players: [
+      { id: 'r1', seat: 0 },
+      { id: 'r2', seat: 1 },
+      { id: 'r3', seat: 2 },
+    ],
+  },
+];
+
+describe('CommsController: ring clips', () => {
+  it('sends each clip to the next seat only, wrapping, and tells players their neighbours', () => {
+    const { controller, box, advance } = setup(
+      { type: 'clips', maxSeconds: 5, direction: 'ring' },
+      { teams: trio },
+    );
+    expect(controller.handleClip('r1', clip(1000))).toBeNull();
+    expect(box('r2').all('comms.clip')).toHaveLength(1);
+    expect(box('r3').all('comms.clip')).toHaveLength(0);
+    advance(3000);
+    expect(controller.handleClip('r3', clip(1000))).toBeNull();
+    expect(box('r1').last('comms.clip')?.from).toBe('r3');
+    expect(box('r2').last('comms.state')?.state.ring).toEqual({ next: 'r3', prev: 'r1' });
+  });
+
+  it('adds a seeded transform to every delivery', () => {
+    const { controller, box } = setup(
+      {
+        type: 'clips',
+        maxSeconds: 5,
+        direction: 'ring',
+        transform: { kind: 'shuffle', sliceMs: 600 },
+      },
+      { teams: trio },
+    );
+    controller.handleClip('r2', clip(1000));
+    const params = box('r3').last('comms.clip')?.params as Record<string, unknown>;
+    expect(params.transform).toEqual({ kind: 'shuffle', sliceMs: 600 });
+    expect(typeof params.transformSeed).toBe('string');
+  });
+});
+
+describe('CommsController: send budgets', () => {
+  it('pools sends for the team, caps each send hard, and refuses at zero', () => {
+    const { controller, box, advance } = setup(
+      { type: 'budget-clips', maxSeconds: 2, budgetSends: 2, budgetScope: 'team' },
+      { teams: trio },
+    );
+    expect(box('r3').last('comms.state')?.state.sends).toEqual({
+      left: 2,
+      total: 2,
+      scope: 'team',
+    });
+    // Too long: still sent, cut off at 2s, and a whole send.
+    expect(controller.handleClip('r1', clip(3500))).toBeNull();
+    expect(box('r2').last('comms.clip')?.params).toEqual({ playMs: 2000 });
+    expect(box('r3').last('comms.clip')?.params).toEqual({ playMs: 2000 });
+    expect(box('r2').last('comms.state')?.state.sends?.left).toBe(1);
+    advance(3000);
+    expect(controller.handleClip('r2', clip(1000))).toBeNull();
+    advance(3000);
+    expect(controller.handleClip('r3', clip(1000))).toBe('Your team is out of sends');
+    expect(box('r1').last('comms.state')?.state.sends?.left).toBe(0);
+  });
+
+  it('keeps per-player sends separate by default', () => {
+    const { controller, box, advance } = setup({
+      type: 'budget-clips',
+      maxSeconds: 2,
+      budgetSends: 1,
+    });
+    expect(controller.handleClip('r1', clip(1000))).toBeNull();
+    advance(3000);
+    expect(controller.handleClip('r1', clip(1000))).toBe("You're out of sends");
+    expect(controller.handleClip('r2', clip(1000))).toBeNull();
+    expect(box('r2').last('comms.state')?.state.sends).toEqual({
+      left: 0,
+      total: 1,
+      scope: 'player',
+    });
+  });
+
+  it('runs alongside other rules in a combined spec', () => {
+    const { controller, box } = setup([
+      { type: 'signals', signals: ['ping'] },
+      { type: 'budget-clips', maxSeconds: 3, budgetSeconds: 5 },
+    ]);
+    expect(controller.handleClip('r1', clip(1000))).toBeNull();
+    expect(box('r1').last('comms.state')?.state.budgets).toEqual({ r1: 4000, r2: 5000 });
   });
 });

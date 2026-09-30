@@ -99,6 +99,23 @@ export function Lobby({ room, meId, actions }: LobbyProps) {
             : `${room.eligiblePuzzles === 1 ? '1 puzzle fits' : `${room.eligiblePuzzles} puzzles fit`} these teams.`}{' '}
           Puzzles are picked at random; nobody chooses.
         </p>
+        {(room.excludedPuzzles?.length ?? 0) > 0 &&
+          !room.teams.some((t) => t.seats.every((s) => s === null)) && (
+            <details className="excluded small muted">
+              <summary>
+                {room.excludedPuzzles?.length === 1
+                  ? "1 puzzle doesn't fit"
+                  : `${room.excludedPuzzles?.length} puzzles don't fit`}
+              </summary>
+              <ul>
+                {room.excludedPuzzles?.map((p) => (
+                  <li key={p.name}>
+                    {p.name}: {p.reason}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
       </section>
 
       <div className="lobby-actions">

@@ -1,4 +1,5 @@
 export * from './account';
+export * from './audio';
 export * from './comms';
 export * from './lobby';
 export * from './match';

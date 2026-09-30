@@ -8,7 +8,7 @@ import { SoundPrompt } from './screens/SoundPrompt';
 import { VoiceStatus } from './screens/VoiceStatus';
 
 export function App() {
-  const { state, voice, recording, actions } = useGame();
+  const { state, voice, recording, micLevel, actions } = useGame();
   const { session, room, match } = state;
   const inRoom = session && room;
   // Voice runs in the lobby too, so keep the screen on for as long as you're in a room.
@@ -44,6 +44,8 @@ export function App() {
           <Match
             match={match}
             puzzleView={state.puzzleView}
+            assets={state.assets}
+            micLevel={micLevel}
             reveal={state.reveal}
             account={state.account}
             signals={state.signals}

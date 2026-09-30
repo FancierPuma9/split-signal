@@ -93,7 +93,7 @@ describe('lobby', () => {
 
   it('validates settings against the engine limits', () => {
     const r = room('a');
-    expect(applySettings(r, { teamCount: 4 })).toMatch(/Teams must be/);
+    expect(applySettings(r, { teamCount: 5 })).toMatch(/Teams must be/);
     expect(applySettings(r, { maxPlayersPerTeam: 0 })).toMatch(/Players per team/);
     expect(applySettings(r, { rounds: 11 })).toMatch(/Rounds must be/);
     expect(r.settings).toEqual({ teamCount: 2, maxPlayersPerTeam: 2, rounds: 5 });

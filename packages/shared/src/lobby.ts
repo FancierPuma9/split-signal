@@ -1,7 +1,7 @@
 /** Engine limits for rooms. The host picks settings within these. */
 export const LOBBY_LIMITS = {
   maxPlayers: 12,
-  maxTeams: 3,
+  maxTeams: 4,
   maxPlayersPerTeam: 4,
   minRounds: 1,
   maxRounds: 10,
@@ -24,6 +24,7 @@ export const TEAM_PRESETS = [
   { id: 'red', name: 'Red' },
   { id: 'blue', name: 'Blue' },
   { id: 'green', name: 'Green' },
+  { id: 'gold', name: 'Gold' },
 ] as const;
 
 /** Consonants only (no accidental words), without Y. */
@@ -51,6 +52,8 @@ export interface RoomView {
   settings: LobbySettings;
   /** How many catalog puzzles fit the current team setup. */
   eligiblePuzzles: number;
+  /** Puzzles that don't fit it, and why (e.g. "needs 3+ teams"), so they're discoverable. */
+  excludedPuzzles?: Array<{ name: string; reason: string }>;
   /** Why the host can't start yet; empty when ready. */
   startBlockers: string[];
 }

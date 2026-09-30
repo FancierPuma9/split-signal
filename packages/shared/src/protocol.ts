@@ -1,7 +1,7 @@
 import type { AccountStats, AccountUser } from './account';
 import { normalizeRoomCode, type LobbySettings, type RoomView } from './lobby';
 import type { MatchView } from './match';
-import type { CommsState, DrawBatch } from './puzzle';
+import type { CommsState, DrawBatch, ReplayRequest } from './puzzle';
 
 /**
  * WebSocket protocol. Every message is JSON with a dotted `type`:
@@ -88,6 +88,8 @@ export type ServerMessage =
   | { type: 'match.view'; view: unknown }
   /** After a round ends: the puzzle's reveal() view for you, shown under the scoreboard. */
   | { type: 'match.reveal'; round: number; view: unknown }
+  /** A file the puzzle built for you this round (e.g. audio), sent once per id. data is base64. */
+  | { type: 'match.asset'; round: number; id: string; mime: string; data: string }
   | { type: 'match.reject'; reason: string }
   /** A signal from a teammate (or an echo of your own, so the UI can confirm it went out). */
   | { type: 'comms.signal'; from: string; signal: string }
@@ -107,6 +109,11 @@ export type ServerMessage =
   | { type: 'comms.draw'; from: string; batch: DrawBatch }
   /** Engine-managed comms state for you this round (who is live, budgets, clips in flight). */
   | { type: 'comms.state'; state: CommsState }
+  /**
+   * voice-replay: play back something a teammate said inside this window of round time, from your
+   * own buffer of their voice. Answer with a __replayMissed action if nothing fits.
+   */
+  | ({ type: 'comms.replay' } & ReplayRequest)
   | { type: 'error'; message: string };
 
 export interface VoicePeer {
@@ -114,6 +121,8 @@ export interface VoicePeer {
   epoch: number;
   send?: boolean;
   hear?: boolean;
+  /** Volume (0-1) to play this peer at, when the puzzle shapes it (e.g. by distance). */
+  gain?: number;
 }
 
 /** Default minimum gap between one player's signals when the puzzle doesn't set cooldownMs. */

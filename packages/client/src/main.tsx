@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { unlockAudio } from '@split-signal/puzzles/audio';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { VadLab } from './screens/VadLab';
 import './styles.css';
 
 // Phones only start sound inside a user gesture, and most of the game's sound is triggered by
@@ -14,8 +15,7 @@ for (const event of ['pointerup', 'keydown', 'click']) {
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');
 
-createRoot(root).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+// /dev/vad is a tool for tuning voice-replay, outside the game.
+const page = location.pathname === '/dev/vad' ? <VadLab /> : <App />;
+
+createRoot(root).render(<StrictMode>{page}</StrictMode>);

@@ -1,11 +1,13 @@
 import {
   DEFAULT_SIGNAL_COOLDOWN_MS,
   allowedSignals,
-  isClipRule,
+  clipRule,
+  findRule,
   type AnyPuzzleServerModule,
   type DrawBatch,
   type MatchPhase,
   type MatchView,
+  type PlayerCommsGate,
   type PlayerInfo,
   type RoundSummary,
   type ServerMessage,
@@ -82,6 +84,12 @@ export interface MatchState {
 
 /** Instance key for shared (arena) puzzles. */
 const SHARED = 'shared';
+/** voice-gated's default: a commsState() change must hold this long before voice follows it. */
+const DEFAULT_GATE_DEBOUNCE_MS = 300;
+/** Shell actions the client sends on its own, never shown a rejection. */
+const SHELL_ACTIONS = new Set(['__micLevel', '__replayMissed']);
+/** __micLevel faster than this is dropped (clients send about ten a second). */
+const MIC_LEVEL_MIN_GAP_MS = 80;
 
 function teamResult(
   teamId: string,
@@ -116,6 +124,13 @@ export class MatchEngine {
   private comms: CommsController | null = null;
   /** The last round's reveal() views by player, kept for the scoreboard (and reconnects). */
   private reveals = new Map<string, unknown>();
+  /** commsState() overrides the voice topology uses now (debounced), by player. */
+  private gates: Record<string, PlayerCommsGate> = {};
+  /** Overrides waiting out the debounce: the gate, its JSON, and when it last changed. */
+  private pendingGates = new Map<string, { gate: PlayerCommsGate; json: string; since: number }>();
+  /** The last replay request id sent to each player. */
+  private replaysSent = new Map<string, number>();
+  private readonly lastMicLevelAt = new Map<string, number>();
 
   constructor(options: MatchOptions, io: MatchIO) {
     if (options.puzzles.length === 0) throw new Error('A match needs at least one puzzle');
@@ -167,9 +182,17 @@ export class MatchEngine {
     }));
   }
 
-  /** Voice state for the topology: timed voice open or closed, who is live under alternation. */
-  voiceState(): { open: boolean; activeByTeam: Record<string, string> } {
-    return this.comms?.voice() ?? { open: true, activeByTeam: {} };
+  /**
+   * Voice state for the topology: timed voice open or closed, who is live under alternation, and
+   * the puzzle's per-player overrides.
+   */
+  voiceState(): {
+    open: boolean;
+    activeByTeam: Record<string, string>;
+    gates: Record<string, PlayerCommsGate>;
+  } {
+    const base = this.comms?.voice() ?? { open: true, activeByTeam: {} };
+    return { ...base, gates: this.state.phase === 'playing' ? this.gates : {} };
   }
 
   hasPlayer(playerId: string): boolean {
@@ -187,6 +210,7 @@ export class MatchEngine {
 
     if (s.phase === 'playing') {
       this.comms?.tick();
+      this.settleGates();
       for (const [key, runtime] of this.instances) {
         if (key === SHARED || !s.roundResults[key]?.solved) runtime.tick();
         if (s.phase !== 'playing') return;
@@ -204,14 +228,24 @@ export class MatchEngine {
 
   handleAction(playerId: string, payload: unknown): void {
     const team = this.teamByPlayer.get(playerId);
-    const reject = (reason: string) => this.io.send(playerId, { type: 'match.reject', reason });
+    const type = (payload as { type?: unknown } | null)?.type;
+    const shell = typeof type === 'string' && SHELL_ACTIONS.has(type);
+    const reject = (reason: string) => {
+      if (!shell) this.io.send(playerId, { type: 'match.reject', reason });
+    };
     if (!team) return reject('You are not in this match');
     if (this.paused) return reject('The match is paused');
     if (this.state.phase !== 'playing') return reject('The round is not running');
     if (!this.isShared() && this.state.roundResults[team.id]?.solved) {
       return reject('Your team already solved it');
     }
-    this.runtimeFor(team.id)?.handleAction(playerId, payload);
+    if (type === '__micLevel') {
+      const now = this.clock.now();
+      const last = this.lastMicLevelAt.get(playerId);
+      if (last !== undefined && now - last < MIC_LEVEL_MIN_GAP_MS) return;
+      this.lastMicLevelAt.set(playerId, now);
+    }
+    this.runtimeFor(team.id)?.handleAction(playerId, payload, shell);
   }
 
   /**
@@ -224,6 +258,7 @@ export class MatchEngine {
     if (!team || !runtime || this.paused || this.state.phase !== 'playing') return;
     const { comms } = this.currentPuzzle().manifest;
     if (!allowedSignals(comms).includes(signal)) return;
+    const signalsRule = findRule(comms, 'signals');
     if (to !== undefined) {
       const reachable = this.isShared()
         ? this.teamByPlayer.has(to)
@@ -232,23 +267,27 @@ export class MatchEngine {
     }
 
     const now = this.clock.now();
-    const cooldown =
-      (comms.type === 'signals' ? comms.cooldownMs : undefined) ?? DEFAULT_SIGNAL_COOLDOWN_MS;
+    const cooldown = signalsRule?.cooldownMs ?? DEFAULT_SIGNAL_COOLDOWN_MS;
     const last = this.lastSignalAt.get(playerId);
     if (last !== undefined && now - last < cooldown) return;
+
+    // The puzzle sees it first: a refused signal is neither applied nor relayed.
+    const refusal = runtime.handleSignal(playerId, signal, to);
+    if (refusal !== null) {
+      this.io.send(playerId, { type: 'match.reject', reason: refusal });
+      return;
+    }
     this.lastSignalAt.set(playerId, now);
 
-    const relay = !(comms.type === 'signals' && comms.relay === false);
-    if (relay) {
+    if (signalsRule?.relay !== false) {
       const recipients = to !== undefined ? [to, playerId] : team.players.map((p) => p.id);
       for (const id of recipients)
         this.io.send(id, { type: 'comms.signal', from: playerId, signal });
     }
-    runtime.handleSignal(playerId, signal, to);
 
     // Under a clip rule, 'repeat' re-delivers the latest clip to whoever asked, with parameters
     // worked out from the state as it is now.
-    if (isClipRule(comms) && signal === 'repeat') this.comms?.repeat(playerId);
+    if (clipRule(comms) && signal === 'repeat') this.comms?.repeat(playerId);
   }
 
   /** A recorded clip, for puzzles with a clip comms rule. */
@@ -282,6 +321,8 @@ export class MatchEngine {
     this.runtimeFor(team.id)?.resendView(playerId);
     this.comms?.resend(playerId);
     this.sendReveal(playerId);
+    // A reloaded client lost its replay state; the next request goes out fresh.
+    this.replaysSent.delete(playerId);
   }
 
   /** Ends the whole match as it stands. Only allowed while waiting on a disconnected player. */
@@ -378,6 +419,9 @@ export class MatchEngine {
 
   private enterPlaying(): void {
     this.reveals = new Map();
+    this.gates = {};
+    this.pendingGates = new Map();
+    this.replaysSent = new Map();
     const puzzle = this.currentPuzzle();
     const { manifest } = puzzle;
     this.enterPhase('playing', manifest.timeLimitSeconds * 1000);
@@ -387,7 +431,7 @@ export class MatchEngine {
     const shared = manifest.instance === 'shared';
 
     const comms = new CommsController({
-      rule: manifest.comms,
+      comms: manifest.comms,
       seed: roundSeed,
       puzzleId: manifest.id,
       teams: this.teams,
@@ -409,11 +453,15 @@ export class MatchEngine {
     });
     this.comms = comms;
 
+    const round = this.state.round;
     const hooks = (onSolved: () => void, onChange?: () => void) => ({
       sendView: (playerId: string, view: unknown) =>
         this.io.send(playerId, { type: 'match.view', view }),
       sendReject: (playerId: string, reason: string) =>
         this.io.send(playerId, { type: 'match.reject', reason }),
+      sendAsset: (playerId: string, id: string, asset: { mime: string; data: string }) =>
+        this.io.send(playerId, { type: 'match.asset', round, id, ...asset }),
+      onCommsState: () => this.collectGates(),
       onSolved,
       ...(onChange ? { onChange } : {}),
       onError: (error: unknown, context: string) =>
@@ -461,6 +509,47 @@ export class MatchEngine {
     this.broadcast();
     comms.begin();
     for (const runtime of this.instances.values()) runtime.start();
+  }
+
+  /**
+   * A puzzle's commsState() changed: send new replay requests straight away, and start the
+   * debounce for voice overrides (voice-gated only; otherwise they apply at once).
+   */
+  private collectGates(): void {
+    if (this.state.phase !== 'playing') return;
+    const latest: Record<string, PlayerCommsGate> = {};
+    for (const runtime of this.instances.values()) Object.assign(latest, runtime.commsGates());
+    const now = this.clock.now();
+    for (const [playerId, full] of Object.entries(latest)) {
+      const { replay, ...gate } = full;
+      if (replay && this.replaysSent.get(playerId) !== replay.id) {
+        this.replaysSent.set(playerId, replay.id);
+        this.io.send(playerId, { type: 'comms.replay', ...replay });
+      }
+      const json = JSON.stringify(gate);
+      if (json === JSON.stringify(this.gates[playerId] ?? {})) {
+        this.pendingGates.delete(playerId);
+      } else if (this.pendingGates.get(playerId)?.json !== json) {
+        this.pendingGates.set(playerId, { gate, json, since: now });
+      }
+    }
+    this.settleGates();
+  }
+
+  /** Applies overrides that have held for the debounce, and re-syncs voice if any did. */
+  private settleGates(): void {
+    if (this.pendingGates.size === 0) return;
+    const gated = findRule(this.currentPuzzle().manifest.comms, 'voice-gated');
+    const debounce = gated ? (gated.debounceMs ?? DEFAULT_GATE_DEBOUNCE_MS) : 0;
+    const now = this.clock.now();
+    let changed = false;
+    for (const [playerId, pending] of this.pendingGates) {
+      if (now - pending.since < debounce) continue;
+      this.gates = { ...this.gates, [playerId]: pending.gate };
+      this.pendingGates.delete(playerId);
+      changed = true;
+    }
+    if (changed) this.io.onStateChange?.();
   }
 
   /** Shared instances: keep each team's live result (for the HUD) in step with the puzzle. */
@@ -541,6 +630,8 @@ export class MatchEngine {
     }
     this.instances = new Map();
     this.comms = null;
+    this.gates = {};
+    this.pendingGates = new Map();
     this.enterPhase('scoreboard', this.timings.scoreboardMs);
     this.broadcast();
     for (const playerId of this.reveals.keys()) this.sendReveal(playerId);

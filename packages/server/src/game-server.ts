@@ -8,7 +8,7 @@ import {
 } from '@split-signal/shared';
 import { voicePeers } from './comms/voice';
 import { newId, newSeatToken, newSeed } from './ids';
-import { eligiblePuzzles, pickPuzzles } from './match/catalog';
+import { eligiblePuzzles, excludedPuzzles, pickPuzzles } from './match/catalog';
 import { MatchEngine, type MatchTimings } from './match/match-engine';
 import {
   addPlayer,
@@ -513,7 +513,14 @@ export class GameServer {
     this.store.set(room);
     const message: ServerMessage = {
       type: 'room.state',
-      room: toRoomView(room, this.eligibleFor(room).length),
+      room: toRoomView(
+        room,
+        this.eligibleFor(room).length,
+        excludedPuzzles(
+          this.catalog,
+          teamRosters(room).map((r) => r.playerIds.length),
+        ),
+      ),
     };
     for (const player of room.players) {
       if (player.connected) this.sockets.get(player.id)?.send(message);
@@ -537,6 +544,7 @@ export class GameServer {
         })),
         voiceOpen: voice?.open ?? true,
         activeByTeam: voice?.activeByTeam ?? {},
+        gates: voice?.gates ?? {},
       },
     });
 
@@ -547,6 +555,8 @@ export class GameServer {
         epoch: this.epochs.get(l.id) ?? 0,
         ...(l.send === false ? { send: false } : {}),
         ...(l.hear === false ? { hear: false } : {}),
+        // Rounded so small volume changes don't flood clients with peer lists.
+        ...(l.gain !== undefined ? { gain: Math.round(l.gain * 20) / 20 } : {}),
       }));
       const json = JSON.stringify(payload);
       if (this.voiceSent.get(playerId) === json) continue;

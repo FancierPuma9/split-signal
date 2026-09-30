@@ -3,6 +3,7 @@ import type {
   AccountUser,
   CommsState,
   MatchView,
+  PuzzleAsset,
   RoomView,
   ServerMessage,
 } from '@split-signal/shared';
@@ -50,6 +51,8 @@ export interface GameState {
   }>;
   /** Engine-managed comms state for this round (who is live, budgets, clips in flight). */
   comms: CommsState & { receivedAt: number };
+  /** Files the puzzle sent for this round (e.g. audio built for this player), by id. */
+  assets: { round: number; files: Record<string, PuzzleAsset> };
   account: AccountState;
   notice: Notice | null;
 }
@@ -57,6 +60,7 @@ export interface GameState {
 const MAX_SIGNALS = 20;
 const MAX_CLIPS = 8;
 const NO_COMMS = { receivedAt: 0 };
+const NO_ASSETS = { round: -1, files: {} };
 const NOT_IN_ROOM = { session: null, room: null, match: null, puzzleView: null, reveal: null };
 
 export const initialGameState: GameState = {
@@ -69,6 +73,7 @@ export const initialGameState: GameState = {
   signals: [],
   clips: [],
   comms: NO_COMMS,
+  assets: NO_ASSETS,
   account: { googleClientId: null, user: null, stats: null, results: null },
   notice: null,
 };
@@ -134,6 +139,8 @@ function onServerMessage(state: GameState, message: ServerMessage, at: number): 
         signals: stillPlaying ? state.signals : [],
         clips: stillPlaying ? state.clips : [],
         comms: stillPlaying ? state.comms : NO_COMMS,
+        // Assets can arrive just before the round's first match.state, so keep them by round.
+        assets: state.assets.round === message.match.round ? state.assets : NO_ASSETS,
         // Results messages follow the final match.state; a new match clears them.
         account:
           message.match.phase === 'finished' || !state.account.results
@@ -190,6 +197,11 @@ function onServerMessage(state: GameState, message: ServerMessage, at: number): 
         : state;
     case 'match.reveal':
       return { ...state, reveal: { round: message.round, value: message.view } };
+    case 'match.asset': {
+      const { round, id, mime, data } = message;
+      const files = state.assets.round === round ? state.assets.files : {};
+      return { ...state, assets: { round, files: { ...files, [id]: { mime, data } } } };
+    }
     case 'match.reject':
       return { ...state, notice: { id: at, text: message.reason } };
     // Voice messages go straight to the VoiceManager, draw batches to their subscribers.
@@ -197,6 +209,7 @@ function onServerMessage(state: GameState, message: ServerMessage, at: number): 
     case 'comms.peers':
     case 'comms.rtc':
     case 'comms.draw':
+    case 'comms.replay':
       return state;
     case 'error':
       return { ...state, notice: { id: at, text: message.message } };

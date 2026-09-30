@@ -6,6 +6,7 @@
  *   - state is never mutated (it is deep-frozen, so mutation throws)
  *   - state and views are plain JSON data
  *   - views never leak information marked as hidden
+ *   - commsState() and assets() results are plain JSON data
  *
  * Plain Errors are thrown on failure, so it works under any test runner.
  */
@@ -18,7 +19,9 @@ import {
   type ClipRouting,
   type CommsState,
   type Context,
+  type PlayerCommsGate,
   type PlayerInfo,
+  type PuzzleAsset,
   type PuzzleScore,
   type PuzzleServerModule,
   type TeamRoster,
@@ -55,7 +58,9 @@ export interface StartOptions<State> {
 export type ScriptStep<Action> =
   | { seat: number; action: Action; expect?: 'accept' | 'reject' }
   /** `to` is another player's index, for targeted signals. */
-  | { seat: number; signal: string; to?: number }
+  | { seat: number; signal: string; to?: number; expect?: 'accept' | 'reject' }
+  /** Asserts fields of one seat's commsState() (e.g. { send: false }). */
+  | { seat: number; expectComms: Partial<PlayerCommsGate> }
   /** Advance simulated time by this many ms, ticking every TICK_INTERVAL_MS. */
   | { advance: number };
 
@@ -193,11 +198,26 @@ export class PuzzleDriver<State, View, Action> {
     return outcome;
   }
 
-  signal(seat: number, signal: string, to?: number): boolean {
+  /** Sends a signal as the server would. A rejected signal is neither applied nor relayed. */
+  signal(seat: number, signal: string, to?: number): ActionOutcome {
     const target = to === undefined ? undefined : this.player(to).id;
-    const changed = this.session.signal(this.player(seat).id, signal, target);
+    const outcome = this.session.signal(this.player(seat).id, signal, target);
     this.check(`after seat ${seat} signal "${signal}"`);
-    return changed;
+    return outcome;
+  }
+
+  /** The puzzle's voice overrides for a seat ({} without commsState()). */
+  commsGate(seat: number): PlayerCommsGate {
+    const gate = this.session.commsState(this.player(seat).id);
+    assertJson(gate, `commsState for seat ${seat}`);
+    return gate;
+  }
+
+  /** Every asset the puzzle would send a seat right now, thunks resolved. */
+  assets(seat: number): Record<string, PuzzleAsset> {
+    const assets = this.session.newAssets(this.player(seat).id, new Set());
+    assertJson(assets, `assets for seat ${seat}`);
+    return assets;
   }
 
   /** Advances simulated time, calling tick() every TICK_INTERVAL_MS like the server does. */
@@ -227,6 +247,12 @@ export class PuzzleDriver<State, View, Action> {
     for (const player of this.players) {
       const view = this.module.view(state, player.id, ctx);
       assertJson(view, `view for seat ${player.seat} ${when}`);
+      if (this.module.commsState) {
+        assertJson(
+          this.module.commsState(state, player.id, ctx),
+          `commsState for seat ${player.seat} ${when}`,
+        );
+      }
 
       for (const hidden of this.hidden) {
         if (!hidden.hiddenFrom(player) || hidden.until?.(state)) continue;
@@ -297,8 +323,28 @@ export function runPuzzleScript<State, View, Action>(
   steps.forEach((step, index) => {
     if ('advance' in step) {
       game.advance(step.advance);
+    } else if ('expectComms' in step) {
+      const gate = game.commsGate(step.seat);
+      for (const [key, want] of Object.entries(step.expectComms)) {
+        const got = gate[key as keyof PlayerCommsGate];
+        // Absent send/receive mean open.
+        const actual = got === undefined && (key === 'send' || key === 'receive') ? true : got;
+        if (!deepEqual(actual, want)) {
+          throw new HarnessError(
+            `step ${index}: expected seat ${step.seat} commsState.${key} = ${JSON.stringify(want)}, got ${JSON.stringify(actual)}`,
+          );
+        }
+      }
     } else if ('signal' in step) {
-      game.signal(step.seat, step.signal, step.to);
+      const outcome = game.signal(step.seat, step.signal, step.to);
+      if (step.expect === 'reject' && outcome.ok) {
+        throw new HarnessError(`step ${index}: expected signal "${step.signal}" to be rejected`);
+      }
+      if (step.expect === 'accept' && !outcome.ok) {
+        throw new HarnessError(
+          `step ${index}: signal "${step.signal}" rejected: "${outcome.reason}"`,
+        );
+      }
     } else {
       const outcome = game.act(step.seat, step.action);
       const expected = step.expect ?? 'accept';

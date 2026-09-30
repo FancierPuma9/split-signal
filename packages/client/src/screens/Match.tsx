@@ -1,8 +1,9 @@
 import {
   DEFAULT_SIGNAL_COOLDOWN_MS,
   allowedSignals,
+  clipRule,
   describeComms,
-  isClipRule,
+  findRule,
   type MatchView,
   type RoundSummary,
   type TeamRoundResult,
@@ -20,6 +21,9 @@ import { SignalBar } from './SignalBar';
 interface MatchProps {
   match: NonNullable<GameState['match']>;
   puzzleView: GameState['puzzleView'];
+  assets: GameState['assets'];
+  /** Your mic loudness in dBFS, for voice with reportLevel (null while the mic is off). */
+  micLevel: number | null;
   reveal: GameState['reveal'];
   account: AccountState;
   signals: GameState['signals'];
@@ -34,6 +38,8 @@ interface MatchProps {
 export function Match({
   match,
   puzzleView,
+  assets,
+  micLevel,
   reveal,
   account,
   signals,
@@ -56,7 +62,8 @@ export function Match({
     () => ({ allowed, send: actions.signal, incoming: signals }),
     [allowed, actions.signal, signals],
   );
-  const maxClipSeconds = isClipRule(comms) ? comms.maxSeconds : null;
+  const clipSpec = clipRule(comms);
+  const maxClipSeconds = clipSpec?.maxSeconds ?? null;
   const recordClip = useCallback(() => {
     if (maxClipSeconds !== null) void actions.recordClip(maxClipSeconds);
   }, [actions, maxClipSeconds]);
@@ -72,7 +79,7 @@ export function Match({
           },
     [maxClipSeconds, actions, recording, clips],
   );
-  const fadeMs = comms.type === 'draw' ? comms.fadeMs : null;
+  const fadeMs = findRule(comms, 'draw')?.fadeMs ?? null;
   const drawProps = useMemo(
     () =>
       fadeMs === null
@@ -81,9 +88,16 @@ export function Match({
     [fadeMs, actions],
   );
   // The shell's signal bar is for free-form signals. Clip rules put 'repeat' in the puzzle's own
-  // UI, and signals the puzzle consumes itself (relay: false) need the puzzle's targeting UI.
+  // UI, signals the puzzle consumes itself (relay: false) need the puzzle's targeting UI, and some
+  // puzzles draw their own signal controls (buttons: 'puzzle').
+  const signalsRule = findRule(comms, 'signals');
   const showSignalBar =
-    comms.type !== 'clips' && !(comms.type === 'signals' && comms.relay === false);
+    allowed.length > 0 &&
+    clipSpec?.type !== 'clips' &&
+    signalsRule?.relay !== false &&
+    signalsRule?.buttons !== 'puzzle';
+  const roundAssets = assets.round === view.round ? assets.files : NO_ASSETS;
+  const reportsLevel = findRule(comms, 'voice')?.reportLevel === true;
 
   return (
     <div className="match">
@@ -106,6 +120,8 @@ export function Match({
                 {...(clipProps ? { clips: clipProps } : {})}
                 {...(drawProps ? { draw: drawProps } : {})}
                 comms={commsState}
+                assets={roundAssets}
+                {...(reportsLevel ? { micLevel } : {})}
                 timer={{ remainingMs, totalMs: view.phaseTotalMs ?? 0 }}
                 me={me}
                 team={{ id: myTeam.id, name: myTeam.name, players: myTeam.players }}
@@ -123,15 +139,21 @@ export function Match({
           </div>
         )}
         {view.phase === 'playing' && myTeam && !myTeam.round.solved && (
-          <CommsBanner rule={comms} comms={commsState} meId={meId} paused={Boolean(view.paused)} />
+          <CommsBanner
+            spec={comms}
+            comms={commsState}
+            meId={meId}
+            paused={Boolean(view.paused)}
+            micLevel={reportsLevel ? micLevel : undefined}
+          />
         )}
         {view.phase === 'playing' &&
           myTeam &&
           !myTeam.round.solved &&
-          (comms.type === 'delayed-clips' || comms.type === 'budget-clips') && (
+          (clipSpec?.type === 'delayed-clips' || clipSpec?.type === 'budget-clips') && (
             <>
               <ClipBar
-                rule={comms}
+                rule={clipSpec}
                 comms={commsState}
                 meId={meId}
                 nameOf={(id) => playerName(view, id)}
@@ -146,10 +168,7 @@ export function Match({
         {view.phase === 'playing' && myTeam && !myTeam.round.solved && showSignalBar && (
           <SignalBar
             allowed={allowed}
-            cooldownMs={
-              (comms.type === 'signals' ? comms.cooldownMs : undefined) ??
-              DEFAULT_SIGNAL_COOLDOWN_MS
-            }
+            cooldownMs={signalsRule?.cooldownMs ?? DEFAULT_SIGNAL_COOLDOWN_MS}
             incoming={signals}
             meId={meId}
             nameOf={(id) => playerName(view, id)}
@@ -168,6 +187,7 @@ export function Match({
               send={noop}
               signals={NO_SIGNALS}
               comms={commsState}
+              assets={roundAssets}
               timer={{ remainingMs: 0, totalMs: view.puzzle.manifest.timeLimitSeconds * 1000 }}
               me={me}
               team={{ id: myTeam.id, name: myTeam.name, players: myTeam.players }}
@@ -211,6 +231,12 @@ function playerName(view: MatchView, id: string): string {
 /** Race rounds are decided on time alone, so moves are only shown for compare rounds. */
 const noop = () => {};
 const NO_SIGNALS = { allowed: [], send: noop, incoming: [] };
+const NO_ASSETS = {};
+
+/** The comms line for a manifest: its own label if it has one. */
+function commsLine(manifest: MatchView['puzzle']['manifest']): string {
+  return manifest.commsLabel ?? describeComms(manifest.comms);
+}
 
 function formatResult(result: TeamRoundResult, winCondition: 'race' | 'compare'): string {
   const parts: string[] = [];
@@ -239,7 +265,7 @@ function Hud({
         </span>
         <h2>{view.phase === 'finished' ? 'Final results' : view.puzzle.manifest.name}</h2>
         {view.phase !== 'finished' && (
-          <span className="comms">{describeComms(view.puzzle.manifest.comms)}</span>
+          <span className="comms">{commsLine(view.puzzle.manifest)}</span>
         )}
       </div>
       <div className="hud-right">
@@ -271,7 +297,7 @@ function Intro({ view }: { view: MatchView }) {
       <h2>{manifest.name}</h2>
       <p>{manifest.description}</p>
       <ul className="intro-facts">
-        <li>{describeComms(manifest.comms)}</li>
+        <li>{commsLine(manifest)}</li>
         <li>
           {manifest.goal ??
             (manifest.winCondition === 'race'

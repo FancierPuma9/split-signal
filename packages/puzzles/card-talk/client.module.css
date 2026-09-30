@@ -1,0 +1,171 @@
+.root {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  width: min(640px, 100%);
+}
+
+.role {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scores li {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--team);
+}
+
+.myScore {
+  background: color-mix(in srgb, var(--team) 25%, transparent);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.card {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 4px;
+  border-radius: 10px;
+  background: #15171c;
+  border: 3px solid transparent;
+}
+
+.card:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.claimed {
+  opacity: 0.35 !important;
+  border-color: var(--claimer);
+}
+
+.badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  min-width: 20px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.mine,
+.contested,
+.neutral {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.card.mine {
+  border-color: var(--owner);
+}
+
+.card.mine .badge,
+span.mine {
+  background: var(--owner, var(--accent));
+  color: #fff;
+}
+
+.card.contested {
+  border-color: #f5b83d;
+}
+
+.card.contested .badge,
+span.contested {
+  background: #f5b83d;
+  color: #1b1e25;
+}
+
+.card.neutral .badge,
+span.neutral {
+  background: #3a404d;
+  color: #fff;
+}
+
+.card.theirs {
+  border-color: var(--owner);
+  border-style: dashed;
+}
+
+.taken {
+  position: absolute;
+  bottom: 2px;
+  left: 6px;
+  font-weight: 800;
+  color: var(--claimer);
+}
+
+.cooldown {
+  margin: 0;
+  min-height: 24px;
+  color: var(--muted);
+}
+
+.ring {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--left), transparent 0);
+  animation: grab-cooldown 1s linear forwards;
+}
+
+@property --left {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 100%;
+}
+
+@keyframes grab-cooldown {
+  from {
+    --left: 100%;
+  }
+  to {
+    --left: 0%;
+  }
+}
+
+.feed {
+  display: grid;
+  gap: 4px;
+  width: min(420px, 100%);
+  margin: 0;
+  padding-left: 22px;
+  font-size: 0.9rem;
+}
+
+.feed li {
+  border-left: 3px solid var(--team);
+  padding-left: 8px;
+}
+
+.legend {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}

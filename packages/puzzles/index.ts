@@ -1,6 +1,7 @@
 import type { AnyPuzzleServerModule } from '@split-signal/shared';
 import airtime from './airtime/server';
 import badAdvice from './bad-advice/server';
+import cardTalk from './card-talk/server';
 import colorMix from './color-mix/server';
 import colorSweep from './color-sweep/server';
 import dictionary from './dictionary/server';
@@ -55,6 +56,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   telegraph,
   dictionary,
   overdraft,
+  cardTalk,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

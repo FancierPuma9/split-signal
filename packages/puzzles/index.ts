@@ -9,6 +9,7 @@ import echoClaw from './echo-claw/server';
 import elevators from './elevators/server';
 import ghostInk from './ghost-ink/server';
 import goingOnce from './going-once/server';
+import hotMic from './hot-mic/server';
 import melodySort from './melody-sort/server';
 import overdraft from './overdraft/server';
 import padlock from './padlock/server';
@@ -59,6 +60,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   overdraft,
   cardTalk,
   yappinMaze,
+  hotMic,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

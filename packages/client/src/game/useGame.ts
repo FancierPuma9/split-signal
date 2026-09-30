@@ -294,7 +294,9 @@ export function useGame() {
       /** Permanently deletes the signed-in account and its stats. */
       deleteAccount: () => send({ type: 'account.delete' }),
       surrender: () => send({ type: 'match.surrender' }),
-      playAgain: () => send({ type: 'match.playAgain' }),
+      /** With a puzzle id, a one-off match of just that puzzle. */
+      playAgain: (puzzleId?: string) =>
+        send(puzzleId ? { type: 'match.playAgain', puzzleId } : { type: 'match.playAgain' }),
       backToLobby: () => send({ type: 'match.backToLobby' }),
       setMuted: (muted: boolean) => voice.setMuted(muted),
       enableMic: () => void voice.requestMic(),

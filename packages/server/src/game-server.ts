@@ -8,7 +8,7 @@ import {
 } from '@split-signal/shared';
 import { voicePeers } from './comms/voice';
 import { newId, newSeatToken, newSeed } from './ids';
-import { eligiblePuzzles, excludedPuzzles, pickPuzzles } from './match/catalog';
+import { eligiblePuzzles, pickPuzzles, puzzleOptions } from './match/catalog';
 import { MatchEngine, type MatchTimings } from './match/match-engine';
 import {
   addPlayer,
@@ -61,6 +61,7 @@ interface Binding {
  */
 export class GameServer {
   private readonly catalog: readonly AnyPuzzleServerModule[];
+  private readonly puzzlesById: ReadonlyMap<string, AnyPuzzleServerModule>;
   private readonly store: RoomStore;
   private readonly now: () => number;
   private readonly timings: Partial<MatchTimings> | undefined;
@@ -88,6 +89,7 @@ export class GameServer {
 
   constructor(options: GameServerOptions) {
     this.catalog = options.catalog;
+    this.puzzlesById = new Map(options.catalog.map((p) => [p.manifest.id, p]));
     this.store = options.store ?? new MemoryRoomStore();
     this.now = options.now ?? Date.now;
     this.timings = options.timings;
@@ -140,7 +142,11 @@ export class GameServer {
         return this.leaveRoom(conn, room, playerId);
       case 'lobby.settings':
         if (!isHost) return hostOnly();
-        return this.update(room, applySettings(room, message.settings), error);
+        return this.update(
+          room,
+          applySettings(room, message.settings, new Set(this.puzzlesById.keys())),
+          error,
+        );
       case 'lobby.seat':
         return this.update(room, moveToSeat(room, playerId, message.teamId, message.seat), error);
       case 'lobby.lock':
@@ -187,14 +193,15 @@ export class GameServer {
         }
         room.status = 'lobby';
         room.match = undefined;
-        const problems = startBlockers(room, this.eligibleFor(room).length);
+        const lineup = message.puzzleId ? [message.puzzleId] : room.settings.playlist;
+        const problems = startBlockers(room, this.optionsFor(room), lineup);
         if (problems.length > 0) {
           room.status = 'in-match';
           room.match = engine.state;
           return error(`Can't play again: ${problems.join('. ')}`);
         }
         this.engines.delete(room.code);
-        return this.startMatch(room, error);
+        return this.startMatch(room, error, lineup);
       }
       case 'match.backToLobby': {
         if (!isHost) return hostOnly();
@@ -348,13 +355,23 @@ export class GameServer {
     this.save(room);
   }
 
-  private startMatch(room: Room, error: (text: string) => void): void {
-    const eligible = this.eligibleFor(room);
-    const problems = startBlockers(room, eligible.length);
+  /** Starts a match of `lineup` in order, or of random puzzles that fit when it's null. */
+  private startMatch(
+    room: Room,
+    error: (text: string) => void,
+    lineup = room.settings.playlist,
+  ): void {
+    const problems = startBlockers(room, this.optionsFor(room), lineup);
     if (problems.length > 0) return error(problems.join('. '));
 
     const seed = newSeed();
-    const puzzles = pickPuzzles(eligible, room.settings.rounds, createRng(seed).fork('puzzles'));
+    const puzzles = lineup
+      ? lineup.flatMap((id) => this.puzzlesById.get(id) ?? [])
+      : pickPuzzles(
+          eligiblePuzzles(this.catalog, this.teamSizes(room)),
+          room.settings.rounds,
+          createRng(seed).fork('puzzles'),
+        );
     const names = new Map(room.players.map((p) => [p.id, p.name]));
     const teams = teamRosters(room).map(({ team, playerIds }) => ({
       id: team.id,
@@ -496,11 +513,12 @@ export class GameServer {
     }
   }
 
-  private eligibleFor(room: Room): AnyPuzzleServerModule[] {
-    return eligiblePuzzles(
-      this.catalog,
-      teamRosters(room).map((r) => r.playerIds.length),
-    );
+  private teamSizes(room: Room): number[] {
+    return teamRosters(room).map((r) => r.playerIds.length);
+  }
+
+  private optionsFor(room: Room) {
+    return puzzleOptions(this.catalog, this.teamSizes(room));
   }
 
   private update(room: Room, problem: string | null, error: (text: string) => void): void {
@@ -513,14 +531,7 @@ export class GameServer {
     this.store.set(room);
     const message: ServerMessage = {
       type: 'room.state',
-      room: toRoomView(
-        room,
-        this.eligibleFor(room).length,
-        excludedPuzzles(
-          this.catalog,
-          teamRosters(room).map((r) => r.playerIds.length),
-        ),
-      ),
+      room: toRoomView(room, this.optionsFor(room)),
     };
     for (const player of room.players) {
       if (player.connected) this.sockets.get(player.id)?.send(message);

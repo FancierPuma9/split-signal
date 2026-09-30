@@ -1,4 +1,10 @@
-import { LOBBY_LIMITS, type AnyPuzzleServerModule, type Rng } from '@split-signal/shared';
+import {
+  LOBBY_LIMITS,
+  type AnyPuzzleServerModule,
+  type PuzzleManifest,
+  type PuzzleOption,
+  type Rng,
+} from '@split-signal/shared';
 
 const fits = (n: number, range: { min: number; max: number }) => n >= range.min && n <= range.max;
 
@@ -23,27 +29,28 @@ const span = (range: { min: number; max: number }, noun: string, limit: number) 
       ? `${range.min}+ ${noun}`
       : `${range.min}-${range.max} ${noun}`;
 
-/** Puzzles this team setup rules out, each with the reason (for the lobby). */
-export function excludedPuzzles(
+/** Why a puzzle can't be played with these team sizes, or null if it can. */
+function misfit(manifest: PuzzleManifest, teamSizes: readonly number[]): string | null {
+  if (!fits(teamSizes.length, manifest.teams)) {
+    return `needs ${span(manifest.teams, 'teams', LOBBY_LIMITS.maxTeams)}`;
+  }
+  if (!teamSizes.every((size) => fits(size, manifest.playersPerTeam))) {
+    const range = manifest.playersPerTeam;
+    return `needs ${span(range, 'players per team', LOBBY_LIMITS.maxPlayersPerTeam)}`;
+  }
+  return null;
+}
+
+/** The whole catalog for the lobby's picker, each marked with whether it fits and why not. */
+export function puzzleOptions(
   catalog: readonly AnyPuzzleServerModule[],
   teamSizes: readonly number[],
-): Array<{ name: string; reason: string }> {
-  if (teamSizes.length === 0) return [];
-  const out: Array<{ name: string; reason: string }> = [];
-  for (const { manifest } of catalog) {
-    if (!fits(teamSizes.length, manifest.teams)) {
-      const teams = span(manifest.teams, 'teams', LOBBY_LIMITS.maxTeams);
-      out.push({ name: manifest.name, reason: `needs ${teams}` });
-    } else if (!teamSizes.every((size) => fits(size, manifest.playersPerTeam))) {
-      const size = span(
-        manifest.playersPerTeam,
-        'players per team',
-        LOBBY_LIMITS.maxPlayersPerTeam,
-      );
-      out.push({ name: manifest.name, reason: `needs ${size}` });
-    }
-  }
-  return out;
+): PuzzleOption[] {
+  return catalog.map(({ manifest }) => {
+    const reason = teamSizes.length === 0 ? 'needs teams' : misfit(manifest, teamSizes);
+    const base = { id: manifest.id, name: manifest.name, description: manifest.description };
+    return reason === null ? { ...base, fits: true } : { ...base, fits: false, reason };
+  });
 }
 
 /**

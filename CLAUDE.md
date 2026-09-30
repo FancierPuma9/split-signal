@@ -18,6 +18,11 @@ budgeted clips, alternating and timed voice, and the draw stream live in
 server/src/comms/controller.ts (one `CommsController` per round); puzzles read its state from
 `ctx.comms`.
 
+Lineups: `LobbySettings.playlist` (puzzle ids, in order, repeats allowed; null = random draw of
+`rounds`). `RoomView.puzzles` is the catalog marked with fits/reason for the picker, and
+`startBlockers` checks every playlist entry fits. `match.playAgain` with a `puzzleId` starts a
+one-off match of that puzzle without touching the playlist.
+
 Arena puzzles (`instance: 'shared'`) run one runtime for the whole room; `score().teams` ranks them.
 `reveal()` views are sent after a round and shown under the scoreboard.
 

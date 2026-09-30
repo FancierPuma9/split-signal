@@ -10,14 +10,29 @@ export const LOBBY_LIMITS = {
 export interface LobbySettings {
   teamCount: number;
   maxPlayersPerTeam: number;
+  /** Round count when drawing at random; a playlist sets its own. */
   rounds: number;
+  /** Puzzle ids the host picked, played in order (repeats allowed). Null draws at random. */
+  playlist: string[] | null;
 }
 
 export const DEFAULT_LOBBY_SETTINGS: LobbySettings = {
   teamCount: 2,
   maxPlayersPerTeam: 2,
   rounds: 5,
+  playlist: null,
 };
+
+/** A catalog puzzle as the lobby's picker shows it. */
+export interface PuzzleOption {
+  id: string;
+  name: string;
+  description: string;
+  /** Whether it supports the teams as seated right now. */
+  fits: boolean;
+  /** Why not, e.g. "needs 3+ teams". */
+  reason?: string;
+}
 
 /** Fixed team identities, in order. The room uses the first `teamCount`. */
 export const TEAM_PRESETS = [
@@ -50,10 +65,8 @@ export interface RoomView {
   players: Array<{ id: string; name: string; connected: boolean }>;
   teams: Array<{ id: string; name: string; seats: Array<string | null> }>;
   settings: LobbySettings;
-  /** How many catalog puzzles fit the current team setup. */
-  eligiblePuzzles: number;
-  /** Puzzles that don't fit it, and why (e.g. "needs 3+ teams"), so they're discoverable. */
-  excludedPuzzles?: Array<{ name: string; reason: string }>;
+  /** The match catalog, in order, each marked with whether it fits the current teams. */
+  puzzles: PuzzleOption[];
   /** Why the host can't start yet; empty when ready. */
   startBlockers: string[];
 }

@@ -525,13 +525,106 @@ th {
   text-align: center;
 }
 
-.excluded ul {
-  margin: 6px 0 0;
-  padding-left: 20px;
+.picker {
+  display: grid;
+  gap: 12px;
 }
 
-.excluded summary {
+.picker-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.picker-head .link {
+  margin-left: auto;
+}
+
+.picker p {
+  margin: 0;
+}
+
+.lineup {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.lineup li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.lineup-number {
+  width: 1.5em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lineup-name {
+  flex: 1;
+  display: grid;
+}
+
+.lineup .link {
+  color: var(--muted);
+  padding: 4px 6px;
+}
+
+.picker small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.picker .misfit small {
+  color: var(--warn);
+}
+
+.catalog summary {
   cursor: pointer;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.catalog[open] summary {
+  margin-bottom: 8px;
+}
+
+.catalog-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.catalog-list button,
+.catalog-list div {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  text-align: left;
+  padding: 8px 12px;
+  font-weight: 500;
+}
+
+.catalog-list div {
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.catalog-list .misfit button:not(:disabled) {
+  color: var(--muted);
 }
 
 .lobby-actions {
@@ -912,6 +1005,32 @@ th {
 .rank {
   width: 1.5em;
   color: var(--muted);
+}
+
+.recap {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.recap li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+}
+
+.recap-name {
+  flex: 1;
+  display: grid;
+  text-align: left;
+}
+
+.recap small {
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 .results-actions {

@@ -1,5 +1,5 @@
 import type { AccountStats, AccountUser } from './account';
-import { normalizeRoomCode, type LobbySettings, type RoomView } from './lobby';
+import { LOBBY_LIMITS, normalizeRoomCode, type LobbySettings, type RoomView } from './lobby';
 import type { MatchView } from './match';
 import type { CommsState, DrawBatch, ReplayRequest } from './puzzle';
 
@@ -40,7 +40,8 @@ export type ClientMessage =
   | { type: 'lobby.start' }
   | { type: 'match.action'; payload: unknown }
   | { type: 'match.surrender' }
-  | { type: 'match.playAgain' }
+  /** Starts the next match; with `puzzleId`, a one-off match of just that puzzle. */
+  | { type: 'match.playAgain'; puzzleId?: string }
   | { type: 'match.backToLobby' }
   /**
    * A discrete signal: to teammates, or to one player with `to` (shared instances). The server
@@ -159,8 +160,18 @@ function parseSettings(value: unknown): Partial<LobbySettings> | null {
     if (!Number.isInteger(value[key])) return null;
     out[key] = value[key] as number;
   }
+  const { playlist } = value;
+  if (playlist === null) out.playlist = null;
+  else if (playlist !== undefined) {
+    if (!Array.isArray(playlist) || playlist.length > LOBBY_LIMITS.maxRounds) return null;
+    if (!playlist.every(isPuzzleId)) return null;
+    out.playlist = playlist.length > 0 ? [...playlist] : null;
+  }
   return out;
 }
+
+const isPuzzleId = (value: unknown): value is string =>
+  typeof value === 'string' && /^[a-z0-9-]{1,40}$/.test(value);
 
 const MAX_SDP_LENGTH = 20_000;
 const MAX_CANDIDATE_LENGTH = 2_000;
@@ -293,13 +304,15 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isToken(data.claimToken)
         ? { type: 'results.claim', claimToken: data.claimToken }
         : null;
+    case 'match.playAgain':
+      if (data.puzzleId === undefined) return { type: data.type };
+      return isPuzzleId(data.puzzleId) ? { type: data.type, puzzleId: data.puzzleId } : null;
     case 'auth.signOut':
     case 'account.delete':
     case 'stats.get':
     case 'room.leave':
     case 'lobby.start':
     case 'match.surrender':
-    case 'match.playAgain':
     case 'match.backToLobby':
       return { type: data.type };
     default:

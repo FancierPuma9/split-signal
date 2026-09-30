@@ -35,6 +35,21 @@ describe('parseClientMessage', () => {
       type: 'lobby.settings',
       settings: { teamCount: 3 },
     });
+    expect(parse({ type: 'lobby.settings', settings: { playlist: ['tap', 'tap'] } })).toEqual({
+      type: 'lobby.settings',
+      settings: { playlist: ['tap', 'tap'] },
+    });
+    for (const playlist of [null, []]) {
+      expect(parse({ type: 'lobby.settings', settings: { playlist } })).toEqual({
+        type: 'lobby.settings',
+        settings: { playlist: null },
+      });
+    }
+    expect(parse({ type: 'match.playAgain', puzzleId: 'split-hairs' })).toEqual({
+      type: 'match.playAgain',
+      puzzleId: 'split-hairs',
+    });
+    expect(parse({ type: 'match.playAgain' })).toEqual({ type: 'match.playAgain' });
     expect(parse({ type: 'lobby.seat', teamId: 'red', seat: 1 })).toEqual({
       type: 'lobby.seat',
       teamId: 'red',
@@ -139,6 +154,10 @@ describe('parseClientMessage', () => {
       '{"type":"room.join","code":"BCDFG","name":"x"}',
       '{"type":"room.rejoin","code":"BCDF","seatToken":""}',
       '{"type":"lobby.settings","settings":{"teamCount":1.5}}',
+      '{"type":"lobby.settings","settings":{"playlist":"tap"}}',
+      '{"type":"lobby.settings","settings":{"playlist":["Tap!"]}}',
+      `{"type":"lobby.settings","settings":{"playlist":${JSON.stringify(Array(11).fill('tap'))}}}`,
+      '{"type":"match.playAgain","puzzleId":7}',
       '{"type":"lobby.seat","teamId":5}',
       '{"type":"lobby.seat","teamId":"red","seat":"1"}',
       '{"type":"lobby.lock","locked":"yes"}',

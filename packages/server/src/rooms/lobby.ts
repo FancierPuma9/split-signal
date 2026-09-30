@@ -3,6 +3,7 @@ import {
   LOBBY_LIMITS,
   TEAM_PRESETS,
   type LobbySettings,
+  type PuzzleOption,
   type RoomView,
 } from '@split-signal/shared';
 import type { Room, RoomPlayer, RoomTeam } from './room';
@@ -95,10 +96,19 @@ export function moveToSeat(
   return null;
 }
 
-export function applySettings(room: Room, patch: Partial<LobbySettings>): string | null {
+/** `knownPuzzles` are the catalog ids a playlist may use. */
+export function applySettings(
+  room: Room,
+  patch: Partial<LobbySettings>,
+  knownPuzzles: ReadonlySet<string> = new Set(),
+): string | null {
   if (room.status !== 'lobby') return 'The match has already started';
-  if (room.locked) return 'Unlock the teams to change settings';
   const next = { ...room.settings, ...patch };
+  // Rounds and the playlist don't move anyone, so they can change with the teams locked.
+  const reseats =
+    next.teamCount !== room.settings.teamCount ||
+    next.maxPlayersPerTeam !== room.settings.maxPlayersPerTeam;
+  if (room.locked && reseats) return 'Unlock the teams to change them';
   if (next.teamCount < 1 || next.teamCount > LOBBY_LIMITS.maxTeams) {
     return `Teams must be 1 to ${LOBBY_LIMITS.maxTeams}`;
   }
@@ -108,8 +118,15 @@ export function applySettings(room: Room, patch: Partial<LobbySettings>): string
   if (next.rounds < LOBBY_LIMITS.minRounds || next.rounds > LOBBY_LIMITS.maxRounds) {
     return `Rounds must be ${LOBBY_LIMITS.minRounds} to ${LOBBY_LIMITS.maxRounds}`;
   }
+  if (next.playlist) {
+    if (next.playlist.length === 0) next.playlist = null;
+    else if (next.playlist.length > LOBBY_LIMITS.maxRounds) {
+      return `Pick up to ${LOBBY_LIMITS.maxRounds} puzzles`;
+    } else if (!next.playlist.every((id) => knownPuzzles.has(id))) return 'No such puzzle';
+    else next.playlist = [...next.playlist];
+  }
   room.settings = next;
-  room.teams = resizeTeams(room.teams, next);
+  if (reseats) room.teams = resizeTeams(room.teams, next);
   return null;
 }
 
@@ -164,8 +181,15 @@ export function setLocked(room: Room, locked: boolean): string | null {
   return null;
 }
 
-/** Reasons the host can't start yet; empty when the match can start. */
-export function startBlockers(room: Room, eligiblePuzzles: number): string[] {
+/**
+ * Reasons the host can't start yet; empty when the match can start. `lineup` is what will be
+ * played: the room's playlist by default, or null for a random draw.
+ */
+export function startBlockers(
+  room: Room,
+  puzzles: readonly PuzzleOption[],
+  lineup: readonly string[] | null = room.settings.playlist,
+): string[] {
   if (room.status !== 'lobby') return ['The match has already started'];
   const blockers = seatingProblems(room);
   if (blockers.length === 0 && !room.locked) blockers.push('Lock the teams to start');
@@ -173,17 +197,20 @@ export function startBlockers(room: Room, eligiblePuzzles: number): string[] {
   if (away.length > 0) {
     blockers.push(`Waiting for ${away.map((p) => p.name).join(', ')} to reconnect`);
   }
-  if (blockers.length === 0 && eligiblePuzzles === 0) {
-    blockers.push('No puzzles support this team setup');
+  if (blockers.length > 0) return blockers;
+  if (!lineup) {
+    if (!puzzles.some((p) => p.fits)) blockers.push('No puzzles support this team setup');
+    return blockers;
+  }
+  for (const id of new Set(lineup)) {
+    const puzzle = puzzles.find((p) => p.id === id);
+    if (!puzzle) blockers.push(`"${id}" isn't available`);
+    else if (!puzzle.fits) blockers.push(`${puzzle.name} ${puzzle.reason ?? "doesn't fit"}`);
   }
   return blockers;
 }
 
-export function toRoomView(
-  room: Room,
-  eligiblePuzzles: number,
-  excludedPuzzles: Array<{ name: string; reason: string }> = [],
-): RoomView {
+export function toRoomView(room: Room, puzzles: readonly PuzzleOption[]): RoomView {
   return {
     code: room.code,
     hostId: room.hostId,
@@ -191,9 +218,8 @@ export function toRoomView(
     locked: room.locked,
     players: room.players.map((p) => ({ id: p.id, name: p.name, connected: p.connected })),
     teams: room.teams.map((t) => ({ id: t.id, name: t.name, seats: [...t.seats] })),
-    settings: { ...room.settings },
-    eligiblePuzzles,
-    excludedPuzzles,
-    startBlockers: startBlockers(room, eligiblePuzzles),
+    settings: { ...room.settings, playlist: room.settings.playlist && [...room.settings.playlist] },
+    puzzles: [...puzzles],
+    startBlockers: startBlockers(room, puzzles),
   };
 }

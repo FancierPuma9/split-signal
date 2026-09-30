@@ -1,4 +1,4 @@
-import { LOBBY_LIMITS } from '@split-signal/shared';
+import { LOBBY_LIMITS, type PuzzleOption } from '@split-signal/shared';
 import { describe, expect, it } from 'vitest';
 import {
   addPlayer,
@@ -22,6 +22,11 @@ const player = (id: string, name = id): RoomPlayer => ({
   connected: true,
   disconnectedAt: null,
 });
+
+const option = (id: string, reason?: string): PuzzleOption =>
+  reason
+    ? { id, name: id.toUpperCase(), description: '', fits: false, reason }
+    : { id, name: id.toUpperCase(), description: '', fits: true };
 
 function room(...ids: string[]): Room {
   const [first = 'host', ...rest] = ids;
@@ -96,7 +101,20 @@ describe('lobby', () => {
     expect(applySettings(r, { teamCount: 5 })).toMatch(/Teams must be/);
     expect(applySettings(r, { maxPlayersPerTeam: 0 })).toMatch(/Players per team/);
     expect(applySettings(r, { rounds: 11 })).toMatch(/Rounds must be/);
-    expect(r.settings).toEqual({ teamCount: 2, maxPlayersPerTeam: 2, rounds: 5 });
+    expect(applySettings(r, { playlist: ['nope'] }, new Set(['tap']))).toMatch(/No such puzzle/);
+    expect(applySettings(r, { playlist: Array(11).fill('tap') }, new Set(['tap']))).toMatch(
+      /up to 10/,
+    );
+    expect(r.settings).toEqual({ teamCount: 2, maxPlayersPerTeam: 2, rounds: 5, playlist: null });
+  });
+
+  it('keeps a playlist, clearing it when emptied', () => {
+    const r = room('a');
+    const known = new Set(['tap', 'draw']);
+    expect(applySettings(r, { playlist: ['tap', 'draw', 'tap'] }, known)).toBeNull();
+    expect(r.settings.playlist).toEqual(['tap', 'draw', 'tap']);
+    expect(applySettings(r, { playlist: [] }, known)).toBeNull();
+    expect(r.settings.playlist).toBeNull();
   });
 
   it('only locks when everyone is seated and no team is empty', () => {
@@ -108,24 +126,44 @@ describe('lobby', () => {
     moveToSeat(r, 'b', 'blue');
     expect(setLocked(r, true)).toBeNull();
     expect(moveToSeat(r, 'b', 'red')).toMatch(/locked/);
-    expect(applySettings(r, { rounds: 3 })).toMatch(/Unlock/);
+    expect(applySettings(r, { teamCount: 3 })).toMatch(/Unlock/);
+    // Nobody moves, so these can change while locked.
+    expect(applySettings(r, { rounds: 3, teamCount: 2 })).toBeNull();
+    expect(applySettings(r, { playlist: ['tap'] }, new Set(['tap']))).toBeNull();
   });
 
   it('explains why a match cannot start', () => {
     const r = room('a', 'b');
-    expect(startBlockers(r, 1)).toEqual([
+    const some = [option('tap'), option('trio', 'needs 3 players per team')];
+    const none = [option('trio', 'needs 3 players per team')];
+    expect(startBlockers(r, some)).toEqual([
       'a, b still need a seat',
       'Red and Blue need at least one player',
     ]);
     moveToSeat(r, 'a', 'red');
     moveToSeat(r, 'b', 'blue');
-    expect(startBlockers(r, 1)).toEqual(['Lock the teams to start']);
+    expect(startBlockers(r, some)).toEqual(['Lock the teams to start']);
     setLocked(r, true);
-    expect(startBlockers(r, 0)).toEqual(['No puzzles support this team setup']);
+    expect(startBlockers(r, none)).toEqual(['No puzzles support this team setup']);
     r.players[1]!.connected = false;
-    expect(startBlockers(r, 1)).toEqual(['Waiting for b to reconnect']);
+    expect(startBlockers(r, some)).toEqual(['Waiting for b to reconnect']);
     r.players[1]!.connected = true;
-    expect(startBlockers(r, 1)).toEqual([]);
+    expect(startBlockers(r, some)).toEqual([]);
+  });
+
+  it('checks every puzzle in the lineup fits', () => {
+    const r = room('a', 'b');
+    moveToSeat(r, 'a', 'red');
+    moveToSeat(r, 'b', 'blue');
+    setLocked(r, true);
+    const puzzles = [option('tap'), option('trio', 'needs 3 players per team')];
+    r.settings.playlist = ['tap', 'trio', 'trio', 'gone'];
+    expect(startBlockers(r, puzzles)).toEqual([
+      'TRIO needs 3 players per team',
+      `"gone" isn't available`,
+    ]);
+    expect(startBlockers(r, puzzles, ['tap', 'tap'])).toEqual([]);
+    expect(startBlockers(r, puzzles, null)).toEqual([]);
   });
 
   it('hands off host when the host leaves', () => {
@@ -142,8 +180,8 @@ describe('lobby', () => {
     moveToSeat(r, 'b', 'red', 1);
     moveToSeat(r, 'a', 'blue', 1);
     expect(teamRosters(r).map((x) => x.playerIds)).toEqual([['b'], ['a']]);
-    const view = toRoomView(r, 3);
+    const view = toRoomView(r, [option('tap')]);
     expect(JSON.stringify(view)).not.toContain('token-');
-    expect(view.eligiblePuzzles).toBe(3);
+    expect(view.puzzles).toEqual([option('tap')]);
   });
 });

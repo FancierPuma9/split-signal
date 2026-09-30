@@ -9,8 +9,8 @@ const room = (status: RoomView['status']): RoomView => ({
   locked: false,
   players: [],
   teams: [],
-  settings: { teamCount: 2, maxPlayersPerTeam: 2, rounds: 5 },
-  eligiblePuzzles: 1,
+  settings: { teamCount: 2, maxPlayersPerTeam: 2, rounds: 5, playlist: null },
+  puzzles: [],
   startBlockers: [],
 });
 

@@ -85,38 +85,23 @@ export function Lobby({ room, meId, actions }: LobbyProps) {
           disabled={!isHost || room.locked}
           onChange={(maxPlayersPerTeam) => actions.settings({ maxPlayersPerTeam })}
         />
-        <Stepper
-          label="Rounds"
-          value={room.settings.rounds}
-          min={LOBBY_LIMITS.minRounds}
-          max={LOBBY_LIMITS.maxRounds}
-          disabled={!isHost || room.locked}
-          onChange={(rounds) => actions.settings({ rounds })}
-        />
-        <p className="small muted">
-          {room.teams.some((t) => t.seats.every((s) => s === null))
-            ? 'Once every team has players, you’ll see how many puzzles fit.'
-            : `${room.eligiblePuzzles === 1 ? '1 puzzle fits' : `${room.eligiblePuzzles} puzzles fit`} these teams.`}{' '}
-          Puzzles are picked at random; nobody chooses.
-        </p>
-        {(room.excludedPuzzles?.length ?? 0) > 0 &&
-          !room.teams.some((t) => t.seats.every((s) => s === null)) && (
-            <details className="excluded small muted">
-              <summary>
-                {room.excludedPuzzles?.length === 1
-                  ? "1 puzzle doesn't fit"
-                  : `${room.excludedPuzzles?.length} puzzles don't fit`}
-              </summary>
-              <ul>
-                {room.excludedPuzzles?.map((p) => (
-                  <li key={p.name}>
-                    {p.name}: {p.reason}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
+        {!room.settings.playlist && (
+          <Stepper
+            label="Rounds"
+            value={room.settings.rounds}
+            min={LOBBY_LIMITS.minRounds}
+            max={LOBBY_LIMITS.maxRounds}
+            disabled={!isHost}
+            onChange={(rounds) => actions.settings({ rounds })}
+          />
+        )}
       </section>
+
+      <PuzzlePicker
+        room={room}
+        isHost={isHost}
+        onChange={(playlist) => actions.settings({ playlist })}
+      />
 
       <div className="lobby-actions">
         {isHost ? (
@@ -145,6 +130,119 @@ export function Lobby({ room, meId, actions }: LobbyProps) {
         </ul>
       )}
     </div>
+  );
+}
+
+interface PuzzlePickerProps {
+  room: RoomView;
+  isHost: boolean;
+  onChange: (playlist: string[] | null) => void;
+}
+
+/** The host's lineup of puzzles, or a random draw ("Surprise us"). Everyone sees it. */
+function PuzzlePicker({ room, isHost, onChange }: PuzzlePickerProps) {
+  const { playlist, rounds } = room.settings;
+  const byId = new Map(room.puzzles.map((p) => [p.id, p]));
+  // Whether a puzzle fits only means something once every team has someone in it.
+  const seated = room.teams.every((t) => t.seats.some((s) => s !== null));
+  const fitting = room.puzzles.filter((p) => p.fits).length;
+  const full = (playlist?.length ?? 0) >= LOBBY_LIMITS.maxRounds;
+  const roundCount = playlist?.length ?? rounds;
+
+  return (
+    <section className="card picker">
+      <div className="picker-head">
+        <h3>Puzzles</h3>
+        <span className="muted small">{roundCount === 1 ? '1 round' : `${roundCount} rounds`}</span>
+        {isHost && playlist && (
+          <button className="link" onClick={() => onChange(null)}>
+            Surprise us instead
+          </button>
+        )}
+      </div>
+
+      {playlist ? (
+        <ol className="lineup">
+          {playlist.map((id, i) => {
+            const puzzle = byId.get(id);
+            const name = puzzle?.name ?? id;
+            const reason = seated && puzzle && !puzzle.fits ? puzzle.reason : undefined;
+            return (
+              <li key={i} className={reason ? 'misfit' : undefined}>
+                <span className="lineup-number">{i + 1}</span>
+                <span className="lineup-name">
+                  {name}
+                  {reason && <small>{reason}</small>}
+                </span>
+                {isHost && (
+                  <button
+                    className="link"
+                    aria-label={`Remove ${name} from round ${i + 1}`}
+                    onClick={() => onChange(playlist.filter((_, j) => j !== i))}
+                  >
+                    ✕
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="small muted">
+          Surprise us: each round is drawn at random from{' '}
+          {seated
+            ? `the ${fitting === 1 ? 'one puzzle' : `${fitting} puzzles`} that fit these teams.`
+            : 'the puzzles that fit your teams.'}
+        </p>
+      )}
+
+      <details className="catalog">
+        <summary>
+          {!isHost
+            ? `All ${room.puzzles.length} puzzles`
+            : playlist
+              ? 'Add another'
+              : 'Pick the puzzles yourself'}
+        </summary>
+        {isHost && (
+          <p className="small muted">
+            Tap to add a round. Repeats are fine; rounds play in this order.
+          </p>
+        )}
+        <ul className="catalog-list">
+          {room.puzzles.map((puzzle) => {
+            const reason = seated && !puzzle.fits ? puzzle.reason : undefined;
+            const label = (
+              <>
+                <span>{puzzle.name}</span>
+                {reason && <small>{reason}</small>}
+              </>
+            );
+            return (
+              <li key={puzzle.id} className={reason ? 'misfit' : undefined}>
+                {isHost ? (
+                  <button
+                    className="secondary"
+                    title={puzzle.description}
+                    disabled={full}
+                    onClick={() => onChange([...(playlist ?? []), puzzle.id])}
+                  >
+                    {label}
+                  </button>
+                ) : (
+                  <div title={puzzle.description}>{label}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {isHost && full && (
+          <p className="small muted">
+            That&apos;s the most a match can hold ({LOBBY_LIMITS.maxRounds} rounds).
+          </p>
+        )}
+      </details>
+    </section>
   );
 }
 

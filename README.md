@@ -38,7 +38,10 @@ pnpm dev
 ```
 
 Open http://localhost:5173, create a room, and share the code (or invite link). Everyone joins,
-sits on a team, the host locks teams and starts. To try it alone, open one browser tab per player.
+sits on a team, the host locks teams and starts. Rounds are drawn at random from the puzzles that
+fit the teams, unless the host picks a lineup in the lobby (in order, repeats allowed); after a
+match the host can replay any single puzzle from it. To try it alone, open one browser tab per
+player.
 
 To make every round use one puzzle while developing it:
 

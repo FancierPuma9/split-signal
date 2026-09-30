@@ -412,11 +412,35 @@ function Results({
           </li>
         ))}
       </ol>
+      {view.history.length > 0 && (
+        <ol className="recap">
+          {view.history.map((r) => (
+            <li key={r.round}>
+              <span className="rank">{r.round + 1}</span>
+              <span className="recap-name">
+                {r.puzzleName}
+                <small>
+                  {r.winnerTeamId
+                    ? `${teamName(r.winnerTeamId)} won`
+                    : r.outcome === 'tie'
+                      ? 'Tie'
+                      : 'Nobody solved it'}
+                </small>
+              </span>
+              {!surrendered && isHost && (
+                <button className="link" onClick={() => actions.playAgain(r.puzzleId)}>
+                  Play this again
+                </button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
       <ResultsSave account={account} actions={actions} />
       <div className="results-actions">
         {!surrendered && isHost && (
           <>
-            <button onClick={actions.playAgain}>Play again</button>
+            <button onClick={() => actions.playAgain()}>Play again</button>
             <button className="secondary" onClick={actions.backToLobby}>
               Back to lobby
             </button>

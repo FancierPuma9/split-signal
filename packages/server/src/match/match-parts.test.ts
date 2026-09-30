@@ -6,7 +6,7 @@ import {
 } from '@split-signal/shared';
 import { describe, expect, it } from 'vitest';
 import { generateRoomCode } from '../rooms/room-codes';
-import { eligiblePuzzles, excludedPuzzles, pickPuzzles } from './catalog';
+import { eligiblePuzzles, pickPuzzles, puzzleOptions } from './catalog';
 import { PausableClock } from './clock';
 import { resolveRound } from './resolution';
 import { onePointPerRound, rankByScore } from './scoring';
@@ -26,25 +26,20 @@ function fakePuzzle(id: string, teams: [number, number], players: [number, numbe
 }
 
 describe('catalog', () => {
-  it('explains why puzzles are left out', () => {
-    const make = (name: string, teams: [number, number], sizes: [number, number]) =>
-      ({
-        manifest: {
-          name,
-          teams: { min: teams[0], max: teams[1] },
-          playersPerTeam: { min: sizes[0], max: sizes[1] },
-        },
-      }) as unknown as AnyPuzzleServerModule;
+  it('marks which puzzles fit, and explains the rest', () => {
     const catalog = [
-      make('Scavenge', [3, 4], [2, 2]),
-      make('Trio', [1, 3], [3, 3]),
-      make('Duo', [1, 3], [2, 4]),
+      fakePuzzle('scavenge', [3, 4], [2, 2]),
+      fakePuzzle('trio', [1, 3], [3, 3]),
+      fakePuzzle('duo', [1, 3], [2, 4]),
     ];
-    expect(excludedPuzzles(catalog, [2, 2])).toEqual([
-      { name: 'Scavenge', reason: 'needs 3+ teams' },
-      { name: 'Trio', reason: 'needs 3 players per team' },
+    const fit = (sizes: number[]) =>
+      puzzleOptions(catalog, sizes).map(({ id, fits, reason }) => ({ id, fits, reason }));
+    expect(fit([2, 2])).toEqual([
+      { id: 'scavenge', fits: false, reason: 'needs 3+ teams' },
+      { id: 'trio', fits: false, reason: 'needs 3 players per team' },
+      { id: 'duo', fits: true, reason: undefined },
     ]);
-    expect(excludedPuzzles(catalog, [])).toEqual([]);
+    expect(puzzleOptions(catalog, [])[2]).toMatchObject({ fits: false });
   });
 
   const duo = fakePuzzle('duo', [1, 3], [2, 2]);

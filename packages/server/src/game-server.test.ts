@@ -108,7 +108,7 @@ describe('GameServer rooms and lobby', () => {
     expect(host.error).toMatch(/needs a seat/);
     const { host: ready } = lobby();
     expect(ready.room?.startBlockers).toEqual([]);
-    expect(ready.room?.eligiblePuzzles).toBe(1);
+    expect(ready.room?.puzzles).toMatchObject([{ id: 'tap', fits: true }]);
   });
 
   it('holds a disconnected lobby seat, then frees it and hands off host', () => {
@@ -227,11 +227,9 @@ describe('GameServer matches', () => {
 
   it('plays rounds end to end', () => {
     const { host, guest } = lobby();
-    host.send({ type: 'lobby.settings', settings: { rounds: 1 } });
+    host.send({ type: 'lobby.settings', settings: { teamCount: 3 } });
     expect(host.error).toMatch(/Unlock/);
-    host.send({ type: 'lobby.lock', locked: false });
     host.send({ type: 'lobby.settings', settings: { rounds: 1 } });
-    host.send({ type: 'lobby.lock', locked: true });
     host.send({ type: 'lobby.start' });
     run(200);
     expect(guest.last('match.view')).toBeDefined();
@@ -292,5 +290,49 @@ describe('GameServer matches', () => {
     run(200 + 10_000 + 100);
     host.send({ type: 'match.backToLobby' });
     expect(guest.room).toMatchObject({ status: 'lobby', locked: true });
+  });
+
+  it("plays the host's playlist in order, and one puzzle again on request", () => {
+    server = new GameServer({
+      catalog: [
+        tapPuzzle(),
+        tapPuzzle({ id: 'tap-two', name: 'Tap Two' }),
+        tapPuzzle({ id: 'trio', name: 'Trio', playersPerTeam: { min: 3, max: 3 } }),
+      ] as AnyPuzzleServerModule[],
+      now: () => now,
+      timings: TIMINGS,
+      log: () => {},
+    });
+    const { host, guest } = lobby();
+    expect(host.room?.puzzles.map((p) => [p.id, p.fits])).toEqual([
+      ['tap', true],
+      ['tap-two', true],
+      ['trio', false],
+    ]);
+    host.send({ type: 'lobby.settings', settings: { playlist: ['nope'] } });
+    expect(host.error).toMatch(/No such puzzle/);
+    host.send({ type: 'lobby.settings', settings: { playlist: ['trio'] } });
+    expect(host.room?.startBlockers).toEqual(['Trio needs 3 players per team']);
+    host.send({ type: 'lobby.start' });
+    expect(host.error).toMatch(/Trio needs 3/);
+
+    host.send({ type: 'lobby.settings', settings: { playlist: ['tap-two', 'tap', 'tap-two'] } });
+    host.send({ type: 'lobby.start' });
+    const played = () => [...new Set(guest.all('match.state').map((m) => m.match.puzzle.id))];
+    run(3 * (200 + 10_000 + 100));
+    expect(guest.last('match.state')?.match).toMatchObject({ phase: 'finished', totalRounds: 3 });
+    const rounds = guest.last('match.state')?.match.history.map((r) => r.puzzleId);
+    expect(rounds).toEqual(['tap-two', 'tap', 'tap-two']);
+    expect(played()).toEqual(['tap-two', 'tap']);
+
+    host.send({ type: 'match.playAgain', puzzleId: 'trio' });
+    expect(host.error).toMatch(/Can't play again: Trio needs 3/);
+    host.send({ type: 'match.playAgain', puzzleId: 'tap' });
+    expect(guest.last('match.state')?.match).toMatchObject({
+      totalRounds: 1,
+      puzzle: { id: 'tap' },
+    });
+    // A one-off leaves the playlist alone.
+    expect(host.room?.settings.playlist).toEqual(['tap-two', 'tap', 'tap-two']);
   });
 });

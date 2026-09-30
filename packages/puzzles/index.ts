@@ -9,6 +9,7 @@ import elevators from './elevators/server';
 import ghostInk from './ghost-ink/server';
 import goingOnce from './going-once/server';
 import melodySort from './melody-sort/server';
+import overdraft from './overdraft/server';
 import padlock from './padlock/server';
 import passItOn from './pass-it-on/server';
 import passItOnReversed from './pass-it-on-reversed/server';
@@ -53,6 +54,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   passItOnReversed,
   telegraph,
   dictionary,
+  overdraft,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

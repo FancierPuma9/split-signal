@@ -1,0 +1,123 @@
+.root {
+  display: grid;
+  gap: 14px;
+  width: min(640px, 100%);
+}
+
+.panel {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 10%);
+}
+
+.panel h4 {
+  margin: 0;
+}
+
+.note {
+  margin: 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  width: min(360px, 100%);
+}
+
+.item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 4px;
+  border-radius: 10px;
+  background: #15171c;
+  border: 2px solid transparent;
+}
+
+button.item:disabled {
+  opacity: 0.85;
+}
+
+.picked {
+  border-color: var(--accent);
+}
+
+.answer {
+  box-shadow: 0 0 0 3px #3ddc84;
+}
+
+.check {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.holding {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.submit {
+  min-width: 200px;
+  min-height: 44px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.done {
+  margin: 0;
+  font-weight: 700;
+  color: #3ddc84;
+}
+
+.heard {
+  display: grid;
+  gap: 6px;
+  width: min(320px, 100%);
+  margin: 0;
+  padding-left: 22px;
+}
+
+.heard li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.heard button {
+  min-height: 36px;
+  padding: 4px 12px;
+}
+
+.score {
+  margin: 0;
+  text-align: center;
+}
+
+.score strong {
+  font-size: 1.8rem;
+  color: var(--accent);
+}

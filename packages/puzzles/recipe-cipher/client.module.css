@@ -197,6 +197,49 @@
   gap: 8px;
 }
 
+.bump {
+  animation: bump 0.35s ease-out;
+}
+
+@keyframes bump {
+  30% {
+    transform: translateY(-4px) rotate(-2deg);
+  }
+  60% {
+    transform: translateY(1px) rotate(1deg);
+  }
+}
+
+/* Fades out after a few seconds; re-keyed per action so it replays. */
+.step {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  text-align: center;
+  animation: step-fade 3.5s ease-out forwards;
+}
+
+.stepOk {
+  color: #3ddc84;
+  background: rgb(61 220 132 / 12%);
+}
+
+.stepBad {
+  color: #ffb224;
+  background: rgb(255 178 36 / 12%);
+}
+
+@keyframes step-fade {
+  0%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+
 .smoke {
   padding: 8px 12px;
   border-radius: 8px;

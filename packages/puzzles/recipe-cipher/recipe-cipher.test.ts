@@ -123,6 +123,10 @@ describe('recipe cipher', () => {
     game.act(cook, { type: 'stir' }); // wrong: should heat first
     expect(game.state.mistakes).toBe(1);
     expect(game.state.progress).toBe(0);
+    // Everyone hears about it, not just the cook.
+    for (const seat of [0, 1]) {
+      expect(game.view(seat).lastStep).toMatchObject({ id: 1, ok: false, text: /Stirred/ });
+    }
     expect(game.act(cook, { type: 'stir' })).toMatchObject({
       ok: false,
       reason: expect.stringMatching(/smoke/),
@@ -130,6 +134,7 @@ describe('recipe cipher', () => {
     game.advance(SMOKE_MS);
     if (first.kind === 'heat') game.act(cook, { type: 'heat', level: first.level });
     expect(game.state.progress).toBe(1);
+    expect(game.state.lastStep).toMatchObject({ id: 2, ok: true, text: /Heat turned to/ });
   });
 
   it('burns a wrongly prepped ingredient', () => {

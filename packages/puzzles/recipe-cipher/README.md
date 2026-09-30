@@ -10,7 +10,9 @@ glyph-to-letter key. They decode it by describing symbols to each other, then pr
   or start cooking on a partial decode.
 - **Prep:** pick an ingredient and a method; it lands on the cook's tray (4 max, 1.5 s per item).
 - **Stove:** set the heat, add tray items, stir, plate. A wrong step fills the kitchen with smoke
-  (stove locked for 5 s) and a wrongly prepped ingredient burns. Progress is never lost.
+  (stove locked for 5 s) and a wrongly prepped ingredient burns. Progress is never lost. Every
+  stove action is confirmed on screen ("✓ Stirred", or what went wrong) for the cook and the rest
+  of the team, and the pan jolts.
 - **Win:** race. First team to plate the dish.
 - **Comms:** voice, team only.
 - **Glyphs:** drawn procedurally from the seed (lines, curves and dots on a 3x3 grid), so nobody

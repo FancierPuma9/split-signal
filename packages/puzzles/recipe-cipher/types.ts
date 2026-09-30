@@ -18,6 +18,15 @@ export type CookStep =
   | { kind: 'stir' }
   | { kind: 'plate' };
 
+/** What the cook just did, so their screen (and the team's) can say so. */
+export interface StepResult {
+  /** Goes up with every stove action, so the same message can show twice. */
+  id: number;
+  text: string;
+  /** Whether it was the right next step. */
+  ok: boolean;
+}
+
 export interface Roles {
   glyphs: string;
   key: string;
@@ -43,6 +52,7 @@ export interface State {
   /** Smoke from a wrong step: the stove is unusable until then. */
   stoveLockedUntil: number;
   mistakes: number;
+  lastStep: StepResult | null;
   roles: Roles;
   solved: boolean;
 }
@@ -73,6 +83,8 @@ export interface View {
   progress: number;
   totalSteps: number;
   mistakes: number;
+  /** The cook's latest stove action, for everyone. */
+  lastStep: StepResult | null;
   roles: Array<'glyphs' | 'key' | 'prep' | 'cook'>;
   solved: boolean;
 }

@@ -2,7 +2,7 @@ import type { PuzzleClientProps } from '@split-signal/shared';
 import { useEffect, useState } from 'react';
 import { GlyphSvg } from '../lib/GlyphSvg';
 import styles from './client.module.css';
-import { HEATS, type Action, type Glyph, type Item, type View } from './types';
+import { HEATS, type Action, type Glyph, type Item, type StepResult, type View } from './types';
 
 type Props = PuzzleClientProps<View, Action>;
 
@@ -20,6 +20,7 @@ export default function RecipeCipher({ view, send, timer }: Props) {
           : `Cooking: ${view.progress} of ${view.totalSteps} steps done`}
         {view.mistakes > 0 && ` · ${view.mistakes} mistake${view.mistakes === 1 ? '' : 's'}`}
       </p>
+      {!view.stove && <StepNote step={view.lastStep} who="The cook: " />}
       <div className={styles.panels}>
         {view.lines && <Instructions lines={view.lines} glyphById={glyphById} />}
         {view.key && <Key entries={view.key} glyphById={glyphById} />}
@@ -200,6 +201,22 @@ function Tray({
   );
 }
 
+/** The cook's latest stove action, shown for a few seconds each time. */
+function StepNote({ step, who = '' }: { step: StepResult | null; who?: string }) {
+  if (!step) return null;
+  return (
+    <p
+      key={step.id}
+      className={`${styles.step} ${step.ok ? styles.stepOk : styles.stepBad}`}
+      role="status"
+    >
+      {who}
+      {step.ok ? '✓ ' : '💨 '}
+      {step.text}
+    </p>
+  );
+}
+
 function Stove({ view, send, now }: { view: View; send: Props['send']; now: number }) {
   const stove = view.stove;
   if (!stove) return null;
@@ -224,7 +241,12 @@ function Stove({ view, send, now }: { view: View; send: Props['send']; now: numb
           </button>
         ))}
       </div>
-      <div className={`${styles.pan} ${stove.heat !== 'off' ? styles.hot : ''}`} aria-label="Pan">
+      {/* Re-keyed on each stove action so the pan jolts: something happened. */}
+      <div
+        key={view.lastStep?.id ?? 0}
+        className={`${styles.pan} ${stove.heat !== 'off' ? styles.hot : ''} ${view.lastStep ? styles.bump : ''}`}
+        aria-label="Pan"
+      >
         {stove.pan.length === 0 ? 'empty pan' : stove.pan.map(itemName).join(' · ')}
       </div>
       {smoky && (
@@ -237,6 +259,7 @@ function Stove({ view, send, now }: { view: View; send: Props['send']; now: numb
         send={send}
         onAdd={disabled ? undefined : (item) => send({ type: 'add', itemId: item.id })}
       />
+      <StepNote step={view.lastStep} />
       <div className={styles.actions}>
         <button className="secondary" disabled={disabled} onClick={() => send({ type: 'stir' })}>
           Stir

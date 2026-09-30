@@ -47,6 +47,7 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
       prepLockedUntil: 0,
       stoveLockedUntil: 0,
       mistakes: 0,
+      lastStep: null,
       // Dealt at random, on their own stream so the recipe doesn't depend on them.
       roles: rolesFor(
         rng
@@ -89,6 +90,7 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
       progress: state.progress,
       totalSteps: state.steps.length,
       mistakes: state.mistakes,
+      lastStep: state.lastStep,
       roles: (['glyphs', 'key', 'prep', 'cook'] as const).filter(has),
       solved: state.solved,
     };
@@ -133,15 +135,26 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
     if (now < state.stoveLockedUntil) return { reject: 'The kitchen is full of smoke! Wait…' };
 
     const expected = state.steps[state.progress];
-    const advance = (changes: Partial<State>): { state: State } => {
+    // Every stove action either moves the recipe on or adds a mistake, so their sum is a fresh id.
+    const id = state.progress + state.mistakes + 1;
+    const advance = (text: string, changes: Partial<State> = {}): { state: State } => {
       const progress = state.progress + 1;
-      return { state: { ...state, ...changes, progress, solved: progress >= state.steps.length } };
+      return {
+        state: {
+          ...state,
+          ...changes,
+          progress,
+          lastStep: { id, text, ok: true },
+          solved: progress >= state.steps.length,
+        },
+      };
     };
-    const smoke = (changes: Partial<State> = {}): { state: State } => ({
+    const smoke = (text: string, changes: Partial<State> = {}): { state: State } => ({
       state: {
         ...state,
         ...changes,
         mistakes: state.mistakes + 1,
+        lastStep: { id, text, ok: false },
         stoveLockedUntil: now + SMOKE_MS,
       },
     });
@@ -151,8 +164,10 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
         if (!HEATS.includes(action.level)) return { reject: 'No such heat' };
         if (action.level === state.heat) return { state };
         return expected?.kind === 'heat' && expected.level === action.level
-          ? advance({ heat: action.level })
-          : smoke({ heat: action.level });
+          ? advance(`Heat turned to ${action.level}`, { heat: action.level })
+          : smoke(`Heat turned to ${action.level}, but that wasn't the next step`, {
+              heat: action.level,
+            });
       }
       case 'add': {
         const item = state.tray.find((i) => i.id === action.itemId);
@@ -162,13 +177,20 @@ const puzzle: PuzzleServerModule<State, View, Action> = {
           expected?.kind === 'add' &&
           expected.ingredient === item.ingredient &&
           expected.method === item.method;
+        const name = `${item.method} ${item.ingredient}`;
         // A wrong ingredient burns and is gone.
-        return right ? advance({ tray, pan: [...state.pan, item] }) : smoke({ tray });
+        return right
+          ? advance(`Added the ${name}`, { tray, pan: [...state.pan, item] })
+          : smoke(`The ${name} burned: it wasn't the next step`, { tray });
       }
       case 'stir':
-        return expected?.kind === 'stir' ? advance({}) : smoke();
+        return expected?.kind === 'stir'
+          ? advance('Stirred')
+          : smoke("Stirred, but that wasn't the next step");
       case 'plate':
-        return expected?.kind === 'plate' ? advance({}) : smoke();
+        return expected?.kind === 'plate'
+          ? advance('Plated!')
+          : smoke("Tried to plate it, but it isn't ready");
     }
   },
 

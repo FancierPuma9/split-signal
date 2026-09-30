@@ -30,6 +30,8 @@ export function CommsBanner({ spec, comms, meId, paused, micLevel }: CommsBanner
     !paused && comms.swapInMs !== undefined,
   );
 
+  // The puzzle switched this player's mic off (a Hunter, a muted Ghost): it says so itself.
+  if (micLevel !== undefined && comms.micClosed) return null;
   if (micLevel !== undefined) {
     const fill =
       micLevel === null

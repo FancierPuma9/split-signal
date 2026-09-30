@@ -35,6 +35,8 @@ export interface CommsControllerOptions {
   canDraw: (teamId: string, playerId: string) => boolean;
   /** Puzzle-visible comms state changed for these teams (e.g. a voice swap). */
   onChange: (teamIds: string[]) => void;
+  /** Whether the puzzle's commsState() has this player's mic switched off. */
+  micClosed?: (playerId: string) => boolean;
 }
 
 interface Clip {
@@ -309,6 +311,7 @@ export class CommsController {
     if (rule?.type === 'delayed-clips') {
       state.pendingDeliveries = this.pending.filter((p) => p.from === playerId).length;
     }
+    if (this.o.micClosed?.(playerId)) state.micClosed = true;
     if (rule?.type === 'clips' && rule.direction === 'ring') {
       const next = this.ringNeighbor(team, playerId, 1);
       const prev = this.ringNeighbor(team, playerId, -1);
@@ -325,6 +328,11 @@ export class CommsController {
       if (active) activeByTeam[team.id] = active;
     }
     return { open: this.voiceOpen, activeByTeam };
+  }
+
+  /** Sends anyone whose comms state changed (e.g. the puzzle closed their mic). */
+  refresh(): void {
+    this.syncStates();
   }
 
   /** Re-sends a player's comms state (after a reconnect). */

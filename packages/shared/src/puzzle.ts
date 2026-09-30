@@ -102,6 +102,8 @@ export interface CommsState {
   ring?: { next: string; prev: string };
   /** budget-clips with budgetSends: sends left in this player's pool (their own, or the team's). */
   sends?: { left: number; total: number; scope: 'player' | 'team' };
+  /** The puzzle's commsState() has switched this player's mic off. */
+  micClosed?: boolean;
 }
 
 /**

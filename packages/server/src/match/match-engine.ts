@@ -450,6 +450,7 @@ export class MatchEngine {
         for (const runtime of this.instances.values()) runtime.refresh();
         this.io.onStateChange?.();
       },
+      micClosed: (playerId) => this.gates[playerId]?.send === false,
     });
     this.comms = comms;
 
@@ -549,7 +550,10 @@ export class MatchEngine {
       this.pendingGates.delete(playerId);
       changed = true;
     }
-    if (changed) this.io.onStateChange?.();
+    if (changed) {
+      this.comms?.refresh();
+      this.io.onStateChange?.();
+    }
   }
 
   /** Shared instances: keep each team's live result (for the HUD) in step with the puzzle. */

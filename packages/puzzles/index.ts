@@ -5,6 +5,7 @@ import cardTalk from './card-talk/server';
 import colorMix from './color-mix/server';
 import colorSweep from './color-sweep/server';
 import dictionary from './dictionary/server';
+import earshot from './earshot/server';
 import echoClaw from './echo-claw/server';
 import elevators from './elevators/server';
 import ghostInk from './ghost-ink/server';
@@ -61,6 +62,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   cardTalk,
   yappinMaze,
   hotMic,
+  earshot,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

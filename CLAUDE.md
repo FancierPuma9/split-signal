@@ -2,8 +2,11 @@
 
 Browser party game; the spec is [docs/PLAN.md](docs/PLAN.md). Every phase (0-8) is built, plus
 puzzle batch 2 ([docs/PUZZLES_BATCH2.md](docs/PUZZLES_BATCH2.md): new comms rules, arena mode, ten
-more puzzles). MIT licensed; self-hosted with Docker + Caddy ([docs/DEPLOY.md](docs/DEPLOY.md)). The
-plans call for playtests (after phases 3 and 5, and batch 2's B2, B5, B8) that haven't happened yet.
+more puzzles) and batch 3 ([docs/PUZZLES_BATCH3.md](docs/PUZZLES_BATCH3.md): rule composition,
+commsState, signal rejection, ring/scrambled/budgeted clips, mic level, voice replay, ten more
+puzzles). MIT licensed; self-hosted with Docker + Caddy ([docs/DEPLOY.md](docs/DEPLOY.md)). The
+plans call for playtests (after phases 3 and 5, batch 2's B2, B5, B8, batch 3's C2, C5, C8) that
+haven't happened yet. [docs/PUZZLE_AUTHORING.md](docs/PUZZLE_AUTHORING.md) documents the contract.
 
 Accounts (phase 7) are optional and off unless `SPLIT_SIGNAL_GOOGLE_CLIENT_ID` is set: the server
 verifies Google ID tokens itself (server/src/auth/google.ts), keeps sessions and stats in SQLite via
@@ -19,13 +22,22 @@ Arena puzzles (`instance: 'shared'`) run one runtime for the whole room; `score(
 `reveal()` views are sent after a round and shown under the scoreboard.
 
 Voice topology (server/src/comms/voice.ts): everyone in lobby/results, own team between rounds, the
-puzzle's rule while playing. The server relays `comms.rtc` only between current peers.
+puzzle's rule while playing, narrowed per player by the puzzle's `commsState()` (the engine
+debounces it into `voiceState().gates`, and sends `comms.replay` requests). The server relays
+`comms.rtc` only between current peers. `manifest.comms` may be a list of rules: use
+`findRule`/`clipRule`/`voiceRule`, never `comms.type`.
+
+`assets()` sends per-player binary files once per id (`match.asset`); Patchwork builds its masked
+audio halves there. Shared audio primitives (transformPcm, splitClip, maskedClip, WAV/base64) are
+in shared/src/audio. Shell actions start with `__` (`__micLevel`, `__replayMissed`).
 
 ## Commands
 
 - `pnpm dev` / `pnpm dev --puzzle <id>`: server on :3001 plus Vite on :5173 (proxies `/ws`)
 - `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm build`
 - Run all five before calling work done; CI runs the same.
+- `pnpm gen:patchwork [--voice <name>] [--force]`: render Patchwork's sentences to WAV (Windows
+  SAPI, say, piper or espeak-ng). `/dev/vad` in the client tunes voice-replay detection.
 
 ## Architecture rules (from the plan; don't drift without a reason)
 

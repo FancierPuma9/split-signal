@@ -6,16 +6,20 @@ twist is always in how players are allowed to communicate.
 
 Inspired by _We Were Here_ (asymmetric information) and _Jackbox_ (room codes, play with friends).
 
-> **Status:** early, but complete: every phase of [the build plan](docs/PLAN.md) plus the second
-> batch of puzzles ([docs/PUZZLES_BATCH2.md](docs/PUZZLES_BATCH2.md)). Rooms, the lobby, the full
-> match loop (rounds, scoring, pause and rejoin, surrender), optional Google sign-in with stats,
-> and every comms channel work: voice, signals, recorded clips, late and jittered clips, rationed
-> mic time, one-way alternating voice, and fading ink. Eighteen puzzles:
+> **Status:** early, but complete: every phase of [the build plan](docs/PLAN.md) plus two more
+> batches of puzzles ([batch 2](docs/PUZZLES_BATCH2.md), [batch 3](docs/PUZZLES_BATCH3.md)). Rooms,
+> the lobby, the full match loop (rounds, scoring, pause and rejoin, surrender), optional Google
+> sign-in with stats, and every comms channel work: voice (per team, whole room, one way,
+> alternating, timed, gated by what you're doing, shaped by distance, replayed), signals, recorded
+> clips (late, jittered, rationed, passed round a ring, scrambled), and fading ink. Twenty-nine
+> puzzles:
 >
 > - **Batch 1:** Sliding Grid, Padlock, Color Mix, Melody Sort, Split Keyboard, Elevators, Recipe
 >   Cipher, Radio Tune.
 > - **Batch 2:** Ghost Ink, Split Hairs, Echo Claw, Color Sweep, Airtime, Walkie, Swap Stack, and
 >   three arena puzzles where the whole room shares one game: Pick Six, Bad Advice and Going Once.
+> - **Batch 3:** Patchwork, Pass It On (and Reverse Charges), Telegraph, Dictionary, Overdraft,
+>   YappinMaze, Hot Mic, and the arena puzzles Card Talk, Earshot and Scavenge (three or more teams).
 >
 > Each puzzle's folder has a README with its rules. It still needs playtesting with real groups:
 > expect the tuning to change.
@@ -41,6 +45,16 @@ To make every round use one puzzle while developing it:
 ```sh
 pnpm dev --puzzle sliding-grid
 ```
+
+Patchwork's spoken sentences are pre-rendered WAVs in its `content/` folder. After adding sentences,
+render them with whatever text-to-speech is installed (Windows voices, macOS `say`, `piper` or
+`espeak-ng`):
+
+```sh
+pnpm gen:patchwork
+```
+
+`/dev/vad` is a tool page for tuning YappinMaze's speech detection with your own mic.
 
 ## Accounts and stats (optional)
 

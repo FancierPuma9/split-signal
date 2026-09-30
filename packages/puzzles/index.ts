@@ -26,6 +26,7 @@ import splitKeyboard from './split-keyboard/server';
 import swapStack from './swap-stack/server';
 import telegraph from './telegraph/server';
 import walkie from './walkie/server';
+import yappinMaze from './yappin-maze/server';
 
 /**
  * The puzzle catalog that matches pick from. To add a puzzle, import its server module and list it
@@ -57,6 +58,7 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   dictionary,
   overdraft,
   cardTalk,
+  yappinMaze,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

@@ -1,0 +1,134 @@
+{
+  "sentences": [
+    {
+      "id": "knight-rite",
+      "text": "The knight was right to write the rite down before the night ended."
+    },
+    {
+      "id": "sea-shells",
+      "text": "She sells sea shells, but her brother sells sealed cells for science."
+    },
+    {
+      "id": "ferry-fair",
+      "text": "Four friends ate eight eggs before the ferry left the pier for the fair."
+    },
+    {
+      "id": "fine-weather",
+      "text": "The weather was so fine that nobody asked whether the fine was paid."
+    },
+    {
+      "id": "pears-pairs",
+      "text": "Please peel the pears and pair the socks before our guests arrive tonight."
+    },
+    {
+      "id": "bored-board",
+      "text": "A bored board member threw the ball through the hole in the wall."
+    },
+    {
+      "id": "flour-flower",
+      "text": "The flour in the mill smelled like the flower growing beside the gate."
+    },
+    {
+      "id": "bare-bear",
+      "text": "He could not bear the bare walls, so he painted a bear on them."
+    },
+    { "id": "flu-flew", "text": "Our hour was up, so we flew home through the fog of flu season." },
+    {
+      "id": "principal",
+      "text": "The principal praised the principle of honesty at the morning assembly again."
+    },
+    { "id": "aunt-ant", "text": "My aunt found an ant in her tea, then another in her bread." },
+    { "id": "sole-soul", "text": "The sailor at the sale sold his soul for a sole sandwich." },
+    { "id": "meet-meat", "text": "We need to meet by the meat counter at a quarter past eight." },
+    {
+      "id": "patient",
+      "text": "The patient waited patiently while the doctor read the red letter twice."
+    },
+    { "id": "bark", "text": "Their dog barked at the bark of the tree over there all night." },
+    {
+      "id": "rows-roses",
+      "text": "She won one prize for the rows of roses she grew beside the road."
+    },
+    { "id": "mail-male", "text": "The mail carrier gave the male cat a whole plate of crackers." },
+    {
+      "id": "grate-great",
+      "text": "Grate the cheese first, then tell me what makes this pizza so great."
+    },
+    {
+      "id": "ice-cream",
+      "text": "I scream, you scream, and we all scream when the ice cream truck leaves."
+    },
+    {
+      "id": "thirty-thirsty",
+      "text": "The thirsty thirty children drank three cups of tea beneath the tree."
+    },
+    {
+      "id": "wry-rye",
+      "text": "A wry smile crossed his face as he packed rye bread for the trip."
+    },
+    {
+      "id": "plain-plane",
+      "text": "The plain plane landed on the plains just after the rain stopped."
+    },
+    {
+      "id": "seals",
+      "text": "Seven sleepy seals slid slowly past the sunken ship near the shore."
+    },
+    { "id": "buy-bye", "text": "The billboard said buy one, so I bought two by the bus stop." },
+    { "id": "new-gnu", "text": "Nobody knew the new gnu at the zoo had chewed through the fence." },
+    { "id": "knot-tide", "text": "He tied a knot so tight that the tide could not pull it loose." },
+    {
+      "id": "peace-piece",
+      "text": "The peace talks ended with a piece of cake for every weary delegate."
+    },
+    {
+      "id": "cellar-seller",
+      "text": "Our cellar has a seller who sells old cellos to curious collectors."
+    },
+    {
+      "id": "hare-hair",
+      "text": "The hare with grey hair raced through the fair at a steady pace."
+    },
+    {
+      "id": "chilly-chili",
+      "text": "A chilly chili contest was held in Chile during the coldest week."
+    },
+    {
+      "id": "wood-would",
+      "text": "Would you carry the wood to the cabin before the storm rolls in?"
+    },
+    {
+      "id": "heir-air",
+      "text": "The heir to the throne breathed the cool air of the mountain pass."
+    },
+    {
+      "id": "aloud-allowed",
+      "text": "She read the red book aloud while the crowd allowed her to finish."
+    },
+    {
+      "id": "kneaded-needed",
+      "text": "The baker kneaded the dough because the village needed bread by dawn."
+    },
+    {
+      "id": "thyme-time",
+      "text": "Two cooks took the last bus to market to buy fresh thyme on time."
+    },
+    {
+      "id": "guest-guessed",
+      "text": "The guest guessed the answer before the host finished reading the question."
+    },
+    {
+      "id": "stationery",
+      "text": "A stationary bike stood beside the stationery shop on the corner."
+    },
+    {
+      "id": "rain-reign",
+      "text": "The rain made the king rein in his horses for most of his reign."
+    },
+    { "id": "which-witch", "text": "Which witch wished for a sandwich at the picnic by the lake?" },
+    {
+      "id": "mussels",
+      "text": "Eating mussels gave the swimmer strong muscles and a sore back after soaring waves."
+    }
+  ]
+}

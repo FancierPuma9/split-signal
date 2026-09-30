@@ -1,0 +1,147 @@
+.root {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: min(720px, 100%);
+}
+
+.hint,
+.note {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.note {
+  font-size: 0.9rem;
+}
+
+.clip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.play {
+  min-width: 96px;
+  min-height: 44px;
+}
+
+.wave {
+  width: 100%;
+  height: 72px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.editor {
+  position: relative;
+  width: 100%;
+}
+
+.text,
+.mirror {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 1.15rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.text {
+  display: block;
+  position: relative;
+  min-height: 96px;
+  resize: vertical;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.mirror {
+  position: absolute;
+  inset: 0;
+  border: 1px solid transparent;
+  color: transparent;
+  pointer-events: none;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+
+.partnerCaret {
+  position: relative;
+  display: inline-block;
+  width: 0;
+  height: 1.2em;
+  vertical-align: text-bottom;
+  border-left: 2px solid #f72585;
+}
+
+.partnerCaret::after {
+  content: attr(data-name);
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #f72585;
+  color: #fff;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.submit {
+  min-width: 220px;
+  min-height: 44px;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.score {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.score strong {
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.diff {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.same {
+  color: var(--text);
+}
+
+.wrong,
+.missing {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--danger) 25%, transparent);
+}
+
+.missing {
+  text-decoration: underline wavy var(--danger);
+}
+
+.wrong del,
+.extra del {
+  color: var(--muted);
+  font-size: 0.85em;
+}

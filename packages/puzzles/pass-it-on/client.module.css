@@ -1,0 +1,219 @@
+.root {
+  display: grid;
+  gap: 14px;
+  width: min(820px, 100%);
+}
+
+.ring,
+.panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 10%);
+}
+
+.ring {
+  justify-items: center;
+  text-align: center;
+}
+
+.panel h4 {
+  margin: 0;
+}
+
+.roleLine {
+  margin: 0;
+  text-align: center;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.clips {
+  display: grid;
+  gap: 6px;
+  width: min(360px, 100%);
+  margin: 0;
+  padding-left: 22px;
+  text-align: left;
+}
+
+.clips li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.clips button {
+  padding: 4px 12px;
+  min-height: 36px;
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.slot {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 4px;
+  min-height: 110px;
+  padding: 8px 4px;
+  background: #15171c;
+  border: 2px dashed #3a404d;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.slot:disabled {
+  opacity: 1;
+}
+
+.slotReady:not(:disabled) {
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.slotLabel {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.slotPart {
+  font-size: 1.6rem;
+  line-height: 1.1;
+}
+
+.slotPart small {
+  font-size: 0.9rem;
+  margin-left: 2px;
+}
+
+.tray {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+
+.part {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.part .icon {
+  font-size: 1.5rem;
+}
+
+.picked {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.tools,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.steps,
+.glyphSteps,
+.revealSteps {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 24px;
+}
+
+.glyphSteps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+}
+
+.glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  background: #fff;
+  color: #1b1e25;
+}
+
+.withTool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #fff;
+  color: #1b1e25;
+}
+
+.key {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.keyCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #fff;
+  color: #1b1e25;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.toolCell {
+  background: #e7f6fd;
+}
+
+.revealSteps small {
+  display: block;
+  color: var(--muted);
+}
+
+.right {
+  color: #3ddc84;
+}
+
+.wrong {
+  color: #ff8a8d;
+}
+
+@media (width < 600px) {
+  .slot {
+    min-height: 90px;
+  }
+
+  .slotPart {
+    font-size: 1.3rem;
+  }
+}

@@ -47,6 +47,8 @@ export interface PuzzleManifest {
    * (for rules whose effect the puzzle shapes, e.g. with commsState).
    */
   commsLabel?: string;
+  /** How points read in results, e.g. '%' for a percentage. Defaults to ' pts'. */
+  pointsUnit?: string;
   /**
    * Race puzzles only: after the first team solves, other teams get this long to finish too, and
    * the fastest solve wins. Defaults to 2000.

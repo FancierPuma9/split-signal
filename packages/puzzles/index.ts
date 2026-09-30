@@ -9,6 +9,9 @@ import ghostInk from './ghost-ink/server';
 import goingOnce from './going-once/server';
 import melodySort from './melody-sort/server';
 import padlock from './padlock/server';
+import passItOn from './pass-it-on/server';
+import passItOnReversed from './pass-it-on-reversed/server';
+import patchwork from './patchwork/server';
 import pickSix from './pick-six/server';
 import pressTheButton from './press-the-button/server';
 import pressTogether from './press-together/server';
@@ -43,6 +46,9 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   swapStack,
   goingOnce,
   walkie,
+  patchwork,
+  passItOn,
+  passItOnReversed,
 ];
 
 /** Development-only puzzles: never picked for real matches, but playable via --puzzle <id>. */

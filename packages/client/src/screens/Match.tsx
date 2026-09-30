@@ -132,7 +132,11 @@ export function Match({
             {myTeam.round.solved && (
               <div className="solved-banner">
                 {view.puzzle.manifest.winCondition === 'compare' ? 'Done!' : 'Solved!'}{' '}
-                {formatResult(myTeam.round, view.puzzle.manifest.winCondition)}
+                {formatResult(
+                  myTeam.round,
+                  view.puzzle.manifest.winCondition,
+                  view.puzzle.manifest.pointsUnit,
+                )}
                 {view.teams.some((t) => !t.round.solved) && ' · waiting for the other teams'}
               </div>
             )}
@@ -238,9 +242,13 @@ function commsLine(manifest: MatchView['puzzle']['manifest']): string {
   return manifest.commsLabel ?? describeComms(manifest.comms);
 }
 
-function formatResult(result: TeamRoundResult, winCondition: 'race' | 'compare'): string {
+function formatResult(
+  result: TeamRoundResult,
+  winCondition: 'race' | 'compare',
+  pointsUnit = ' pts',
+): string {
   const parts: string[] = [];
-  if (result.points !== undefined) parts.push(`${result.points} pts`);
+  if (result.points !== undefined) parts.push(`${result.points}${pointsUnit}`);
   if (winCondition === 'compare' && result.moves !== undefined) {
     parts.push(`${result.moves} ${result.moves === 1 ? 'move' : 'moves'}`);
   }
@@ -354,7 +362,7 @@ function Scoreboard({
                 </td>
                 <td>
                   {result?.solved || result?.points !== undefined
-                    ? formatResult(result, round.winCondition)
+                    ? formatResult(result, round.winCondition, view.puzzle.manifest.pointsUnit)
                     : 'Not solved'}
                 </td>
                 <td>+{round.points[team.id] ?? 0}</td>

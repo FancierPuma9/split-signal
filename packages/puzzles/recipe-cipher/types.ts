@@ -1,13 +1,10 @@
+import type { Glyph } from '../lib/glyphs';
+
 export type Heat = 'off' | 'low' | 'med' | 'high';
 
 export const HEATS: readonly Heat[] = ['off', 'low', 'med', 'high'];
 
-/** A procedurally drawn glyph: one SVG path plus a few dots, in a 30x30 box. */
-export interface Glyph {
-  id: string;
-  d: string;
-  dots: Array<[number, number]>;
-}
+export type { Glyph };
 
 export interface Item {
   id: string;

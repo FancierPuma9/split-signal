@@ -413,6 +413,7 @@ More on the driver:
   (signals only, no talking, distorted clips, late or rationed voice) or split control instead of
   information.
 - Make feedback readable. When players can't talk, the outcome itself has to show what each
-  player was trying to do. Swap Stack's only message is whether the Sorter swapped.
+  player was trying to do. (Swap Stack, whose only message was whether the Sorter swapped, was cut
+  after playtesting.)
 - **Enforce it mechanically.** Word counts, "questions only" and other behavioural rules need
   someone to police them. Build the constraint into the wire instead.

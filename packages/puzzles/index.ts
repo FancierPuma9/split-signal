@@ -26,7 +26,6 @@ import scavenge from './scavenge/server';
 import slidingGrid from './sliding-grid/server';
 import splitHairs from './split-hairs/server';
 import splitKeyboard from './split-keyboard/server';
-import swapStack from './swap-stack/server';
 import telegraph from './telegraph/server';
 import walkie from './walkie/server';
 import yappinMaze from './yappin-maze/server';
@@ -51,7 +50,6 @@ export const puzzles: readonly AnyPuzzleServerModule[] = [
   airtime,
   pickSix,
   badAdvice,
-  swapStack,
   goingOnce,
   walkie,
   patchwork,

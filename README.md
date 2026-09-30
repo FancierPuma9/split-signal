@@ -11,12 +11,12 @@ Inspired by _We Were Here_ (asymmetric information) and _Jackbox_ (room codes, p
 > the lobby, the full match loop (rounds, scoring, pause and rejoin, surrender), optional Google
 > sign-in with stats, and every comms channel work: voice (per team, whole room, one way,
 > alternating, timed, gated by what you're doing, shaped by distance, replayed), signals, recorded
-> clips (late, jittered, rationed, passed round a ring, scrambled), and fading ink. Twenty-nine
+> clips (late, jittered, rationed, passed round a ring, scrambled), and fading ink. Twenty-eight
 > puzzles:
 >
 > - **Batch 1:** Sliding Grid, Padlock, Color Mix, Melody Sort, Split Keyboard, Elevators, Recipe
 >   Cipher, Radio Tune.
-> - **Batch 2:** Ghost Ink, Split Hairs, Echo Claw, Color Sweep, Airtime, Walkie, Swap Stack, and
+> - **Batch 2:** Ghost Ink, Split Hairs, Echo Claw, Color Sweep, Airtime, Walkie, and
 >   three arena puzzles where the whole room shares one game: Pick Six, Bad Advice and Going Once.
 > - **Batch 3:** Patchwork, Pass It On (and Reverse Charges), Telegraph, Dictionary, Overdraft,
 >   YappinMaze, Hot Mic, and the arena puzzles Card Talk, Earshot and Scavenge (three or more teams).

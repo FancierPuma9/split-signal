@@ -471,7 +471,7 @@ Starting values. Expect all of these to change after playtesting.
 | Max teams | 3 |
 | Max players per team | 4 |
 | Race grace window | 2s |
-| Round intro / countdown | 5s + 3s |
+| Round intro / countdown | 10s + 3s (was 5s; too short to read in playtesting) |
 | Scoreboard screen | 6s |
 | Signal cooldown (arrows) | 750ms |
 | Clip max length | 5s |

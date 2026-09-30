@@ -1050,6 +1050,19 @@ th {
   padding: 16px;
 }
 
+.hud-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Above the sticky comms bars. */
+.help-overlay {
+  z-index: 50;
+  overflow-y: auto;
+}
+
 .overlay-card {
   display: grid;
   gap: 12px;

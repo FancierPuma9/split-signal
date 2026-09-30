@@ -31,7 +31,7 @@ export interface MatchTimings {
 }
 
 export const DEFAULT_TIMINGS: MatchTimings = {
-  introMs: 5000,
+  introMs: 10_000,
   countdownMs: 3000,
   scoreboardMs: 6000,
   defaultRaceGraceMs: 2000,

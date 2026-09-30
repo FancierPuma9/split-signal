@@ -52,6 +52,7 @@ export function Match({
 }: MatchProps) {
   const { view } = match;
   const [hearing, setHearing] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const running = !view.paused && view.phaseRemainingMs !== null;
   const remainingMs = useCountdown(view.phaseRemainingMs ?? 0, match.receivedAt, running);
   const myTeam = view.teams.find((t) => t.players.some((p) => p.id === meId));
@@ -101,7 +102,12 @@ export function Match({
 
   return (
     <div className="match">
-      <Hud view={view} remainingMs={remainingMs} myTeamId={myTeam?.id} />
+      <Hud
+        view={view}
+        remainingMs={remainingMs}
+        myTeamId={myTeam?.id}
+        onHelp={() => setShowHelp(true)}
+      />
 
       <div className="match-body">
         {view.phase === 'intro' && <Intro view={view} />}
@@ -203,6 +209,14 @@ export function Match({
         )}
       </div>
 
+      {showHelp && view.phase !== 'finished' && (
+        <div className="overlay help-overlay" onClick={() => setShowHelp(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <Intro view={view} onClose={() => setShowHelp(false)} />
+          </div>
+        </div>
+      )}
+
       {view.paused && view.phase !== 'finished' && (
         <div className="overlay">
           <div className="card overlay-card">
@@ -260,10 +274,12 @@ function Hud({
   view,
   remainingMs,
   myTeamId,
+  onHelp,
 }: {
   view: MatchView;
   remainingMs: number;
   myTeamId: string | undefined;
+  onHelp: () => void;
 }) {
   return (
     <header className="hud">
@@ -273,7 +289,14 @@ function Hud({
         </span>
         <h2>{view.phase === 'finished' ? 'Final results' : view.puzzle.manifest.name}</h2>
         {view.phase !== 'finished' && (
-          <span className="comms">{commsLine(view.puzzle.manifest)}</span>
+          <div className="hud-line">
+            <span className="comms">{commsLine(view.puzzle.manifest)}</span>
+            {view.phase !== 'intro' && (
+              <button className="link small" onClick={onHelp}>
+                How to play
+              </button>
+            )}
+          </div>
         )}
       </div>
       <div className="hud-right">
@@ -295,10 +318,11 @@ function Hud({
   );
 }
 
-function Intro({ view }: { view: MatchView }) {
+/** The round's rules: shown before it starts, and again from "How to play" (with `onClose`). */
+function Intro({ view, onClose }: { view: MatchView; onClose?: () => void }) {
   const { manifest } = view.puzzle;
   return (
-    <div className="card intro">
+    <div className="card intro" role={onClose ? 'dialog' : undefined} aria-label="How to play">
       <span className="muted">
         Round {view.round + 1} of {view.totalRounds}
       </span>
@@ -314,6 +338,11 @@ function Intro({ view }: { view: MatchView }) {
         </li>
         <li>Time limit: {formatTime(manifest.timeLimitSeconds * 1000)}</li>
       </ul>
+      {onClose && (
+        <button className="secondary" onClick={onClose}>
+          Back to the game
+        </button>
+      )}
     </div>
   );
 }
